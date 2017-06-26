@@ -24,6 +24,10 @@ def main(args=None):
     parser.add_argument("--rawimage",
                         help="FITS file is a RAW image (otherwise RSS assumed)",
                         action="store_true")
+    parser.add_argument("--yoffset",
+                        help="Vertical offset (+upwards, -downwards)",
+                        default=0,
+                        type=float)
     parser.add_argument("--z1z2",
                         help="tuple z1,z2, minmax or None (use zscale)")
     parser.add_argument("--bbox",
@@ -64,6 +68,7 @@ def main(args=None):
             if args.rawimage:
                 lcut = (yp > 2056.5)
                 yp[lcut] += 100
+            yp += args.yoffset
             ax.plot(xp+ix_offset, yp, 'b:')
 
     import matplotlib.pyplot as plt
