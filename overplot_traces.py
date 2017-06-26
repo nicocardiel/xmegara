@@ -21,6 +21,9 @@ def main(args=None):
                         help="JSON file with traces",
                         type=argparse.FileType('r'))
     # optional parameters
+    parser.add_argument("--rawimage",
+                        help="FITS file is a RAW image (otherwise RSS assumed)",
+                        action="store_true")
     parser.add_argument("--z1z2",
                         help="tuple z1,z2, minmax or None (use zscale)")
     parser.add_argument("--bbox",
@@ -40,6 +43,12 @@ def main(args=None):
                       args_geometry=args.geometry,
                       show=False)
 
+    # trace offsets for RAW images
+    if args.rawimage:
+        ix_offset = 51
+    else:
+        ix_offset = 1
+
     # read traces from JSON file
     bigdict = json.loads(open(args.traces_file.name).read())
     for fiberdict in bigdict['contents']:
@@ -52,7 +61,10 @@ def main(args=None):
             xp = np.linspace(start=xmin, stop=xmax, num=num)
             ypol = Polynomial(coeff)
             yp = ypol(xp)
-            ax.plot(xp+1, yp+1, 'b-')
+            if args.rawimage:
+                lcut = (yp > 2056.5)
+                yp[lcut] += 100
+            ax.plot(xp+ix_offset, yp, 'b:')
 
     import matplotlib.pyplot as plt
     plt.show(block=False)
