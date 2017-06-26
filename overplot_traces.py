@@ -44,6 +44,7 @@ def main(args=None):
     args = parser.parse_args(args=args)
 
     ax = ximshow_file(args.fits_file.name,
+                      args_cbar_orientation='vertical',
                       args_z1z2=args.z1z2,
                       args_bbox=args.bbox,
                       args_keystitle=args.keystitle,
@@ -73,7 +74,7 @@ def main(args=None):
                 lcut = (yp > 2056.5)
                 yp[lcut] += 100
             yp += args.yoffset
-            ax.plot(xp+ix_offset, yp, 'b:')
+            ax.plot(xp+ix_offset, yp+1, 'b:')
             if args.fibids:
                 ax.text((xmin+xmax)/2, yp[int(num/2)], str(fibid), fontsize=6,
                         bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="grey",),
