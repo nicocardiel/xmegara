@@ -28,6 +28,9 @@ def main(args=None):
                         help="Vertical offset (+upwards, -downwards)",
                         default=0,
                         type=float)
+    parser.add_argument("--fibids",
+                        help="Display fiber identification number",
+                        action="store_true")
     parser.add_argument("--z1z2",
                         help="tuple z1,z2, minmax or None (use zscale)")
     parser.add_argument("--bbox",
@@ -58,6 +61,7 @@ def main(args=None):
     for fiberdict in bigdict['contents']:
         xmin = fiberdict['start']
         xmax = fiberdict['stop']
+        fibid = fiberdict['fibid']
         coeff = fiberdict['fitparms']
         # skip fibers without trace
         if len(coeff) > 0:
@@ -70,6 +74,11 @@ def main(args=None):
                 yp[lcut] += 100
             yp += args.yoffset
             ax.plot(xp+ix_offset, yp, 'b:')
+            if args.fibids:
+                ax.text((xmin+xmax)/2, yp[int(num/2)], str(fibid), fontsize=6,
+                        color='green', backgroundcolor='white')
+        else:
+            print('>>> Missing fiber:', fibid)
 
     import matplotlib.pyplot as plt
     plt.show(block=False)
