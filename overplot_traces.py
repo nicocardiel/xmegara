@@ -5,6 +5,7 @@ import argparse
 import json
 import numpy as np
 from numpy.polynomial import Polynomial
+from uuid import uuid4
 
 from numina.array.display.ximshow import ximshow_file
 from numina.array.display.pause_debugplot import pause_debugplot
@@ -124,11 +125,15 @@ def main(args=None):
             else:
                 raise ValueError("Unexpected healing method:",
                                  badfiberdict['method'])
-        if args.updated_traces is not None:
-            # avoid overwritting initial JSON file
-            if args.updated_traces.name != args.traces_file.name:
-                with open(args.updated_traces.name, 'w') as outfile:
-                    json.dump(bigdict, outfile, indent=2)
+
+    # update trace map
+    if args.updated_traces is not None:
+        # avoid overwritting initial JSON file
+        if args.updated_traces.name != args.traces_file.name:
+            # new random uuid for the updated calibration
+            bigdict['uuid'] = str(uuid4())
+            with open(args.updated_traces.name, 'w') as outfile:
+                json.dump(bigdict, outfile, indent=2)
 
     import matplotlib.pyplot as plt
     plt.show(block=False)
