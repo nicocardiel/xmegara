@@ -76,9 +76,10 @@ def main(args=None):
             ax.plot(xp+ix_offset, yp, 'b:')
             if args.fibids:
                 ax.text((xmin+xmax)/2, yp[int(num/2)], str(fibid), fontsize=6,
-                        color='green', backgroundcolor='white')
+                        bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="grey",),
+                        color='green', fontweight='bold', backgroundcolor='white')
         else:
-            print('>>> Missing fiber:', fibid)
+            print('Warning ---> Missing fiber:', fibid)
 
     import matplotlib.pyplot as plt
     plt.show(block=False)
