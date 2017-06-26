@@ -10,7 +10,7 @@ from numina.array.display.ximshow import ximshow_file
 from numina.array.display.pause_debugplot import pause_debugplot
 
 
-def plot_trace(ax, coeff, xmin, xmax, ix_offset, yoffset,
+def plot_trace(ax, coeff, xmin, xmax, ix_offset,
               rawimage, fibids, fibid, colour):
     num = int(float(xmax - xmin + 1) + 0.5)
     xp = np.linspace(start=xmin, stop=xmax, num=num)
@@ -19,7 +19,6 @@ def plot_trace(ax, coeff, xmin, xmax, ix_offset, yoffset,
     if rawimage:
         lcut = (yp > 2056.5)
         yp[lcut] += 100
-    yp += yoffset
     ax.plot(xp + ix_offset, yp + 1, color=colour, linestyle='dotted')
     if fibids:
         ax.text((xmin + xmax) / 2, yp[int(num / 2)], str(fibid), fontsize=6,
@@ -35,7 +34,7 @@ def main(args=None):
                         help="FITS image containing the spectra",
                         type=argparse.FileType('r'))
     parser.add_argument("traces_file",
-                        help="JSON file with traces",
+                        help="JSON file with fiber traces",
                         type=argparse.FileType('r'))
     # optional parameters
     parser.add_argument("--rawimage",
@@ -51,6 +50,9 @@ def main(args=None):
     parser.add_argument("--healing",
                         help="JSON healing file to improve traces",
                         type=argparse.FileType('r'))
+    parser.add_argument("--updated_traces",
+                        help="JSON file with modified fiber traces",
+                        type=argparse.FileType('w'))
     parser.add_argument("--z1z2",
                         help="tuple z1,z2, minmax or None (use zscale)")
     parser.add_argument("--bbox",
@@ -83,10 +85,13 @@ def main(args=None):
         fibid = fiberdict['fibid']
         xmin = fiberdict['start']
         xmax = fiberdict['stop']
-        coeff = fiberdict['fitparms']
+        coeff = np.array(fiberdict['fitparms'])
         # skip fibers without trace
         if len(coeff) > 0:
-            plot_trace(ax, coeff, xmin, xmax, ix_offset, args.yoffset,
+            coeff[0] += args.yoffset
+            # update values in bigdict (JSON structure)
+            bigdict['contents'][fibid-1]['fitparms'] = coeff.tolist()
+            plot_trace(ax, coeff, xmin, xmax, ix_offset,
                        args.rawimage, args.fibids, fibid, colour='blue')
         else:
             print('Warning ---> Missing fiber:', fibid)
@@ -103,17 +108,27 @@ def main(args=None):
                 tmpf1 = bigdict['contents'][nf1-1]
                 tmpf2 = bigdict['contents'][nf2-1]
                 if nf1 != tmpf1['fibid'] or nf2 != tmpf2['fibid']:
-                    raise ValueError("Unexpect fiber numbers in neighbours")
+                    raise ValueError("Unexpected fiber numbers in neighbours")
                 coefff1 = np.array(tmpf1['fitparms'])
                 coefff2 = np.array(tmpf2['fitparms'])
                 xmin = np.min([tmpf1['start'], tmpf2['start']])
                 xmax = np.min([tmpf1['stop'], tmpf2['stop']])
                 coeff = coefff1 + fraction * (coefff2 - coefff1)
-                plot_trace(ax, coeff, xmin, xmax, ix_offset, args.yoffset,
+                plot_trace(ax, coeff, xmin, xmax, ix_offset,
                            args.rawimage, args.fibids, fibid, colour='green')
+                # update values in bigdict (JSON structure)
+                bigdict['contents'][fibid - 1]['start'] = xmin
+                bigdict['contents'][fibid - 1]['stop'] = xmax
+                bigdict['contents'][fibid - 1]['fitparms'] = coeff.tolist()
+
             else:
                 raise ValueError("Unexpected healing method:",
                                  badfiberdict['method'])
+        if args.updated_traces is not None:
+            # avoid overwritting initial JSON file
+            if args.updated_traces.name != args.traces_file.name:
+                with open(args.updated_traces.name, 'w') as outfile:
+                    json.dump(bigdict, outfile, indent=2)
 
     import matplotlib.pyplot as plt
     plt.show(block=False)
