@@ -10,6 +10,23 @@ from numina.array.display.ximshow import ximshow_file
 from numina.array.display.pause_debugplot import pause_debugplot
 
 
+def plot_trace(ax, coeff, xmin, xmax, ix_offset, yoffset,
+              rawimage, fibids, fibid, colour):
+    num = int(float(xmax - xmin + 1) + 0.5)
+    xp = np.linspace(start=xmin, stop=xmax, num=num)
+    ypol = Polynomial(coeff)
+    yp = ypol(xp)
+    if rawimage:
+        lcut = (yp > 2056.5)
+        yp[lcut] += 100
+    yp += yoffset
+    ax.plot(xp + ix_offset, yp + 1, color=colour, linestyle='dotted')
+    if fibids:
+        ax.text((xmin + xmax) / 2, yp[int(num / 2)], str(fibid), fontsize=6,
+                bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="grey", ),
+                color=colour, fontweight='bold', backgroundcolor='white')
+
+
 def main(args=None):
     # parse command-line options
     parser = argparse.ArgumentParser(prog='overplot_traces')
@@ -22,7 +39,7 @@ def main(args=None):
                         type=argparse.FileType('r'))
     # optional parameters
     parser.add_argument("--rawimage",
-                        help="FITS file is a RAW image (otherwise RSS assumed)",
+                        help="FITS file is a RAW image (RSS assumed instead)",
                         action="store_true")
     parser.add_argument("--yoffset",
                         help="Vertical offset (+upwards, -downwards)",
@@ -31,6 +48,9 @@ def main(args=None):
     parser.add_argument("--fibids",
                         help="Display fiber identification number",
                         action="store_true")
+    parser.add_argument("--healing",
+                        help="JSON healing file to improve traces",
+                        type=argparse.FileType('r'))
     parser.add_argument("--z1z2",
                         help="tuple z1,z2, minmax or None (use zscale)")
     parser.add_argument("--bbox",
@@ -57,30 +77,43 @@ def main(args=None):
     else:
         ix_offset = 1
 
-    # read traces from JSON file
+    # read and display traces from JSON file
     bigdict = json.loads(open(args.traces_file.name).read())
     for fiberdict in bigdict['contents']:
+        fibid = fiberdict['fibid']
         xmin = fiberdict['start']
         xmax = fiberdict['stop']
-        fibid = fiberdict['fibid']
         coeff = fiberdict['fitparms']
         # skip fibers without trace
         if len(coeff) > 0:
-            num = int(float(xmax-xmin+1)+0.5)
-            xp = np.linspace(start=xmin, stop=xmax, num=num)
-            ypol = Polynomial(coeff)
-            yp = ypol(xp)
-            if args.rawimage:
-                lcut = (yp > 2056.5)
-                yp[lcut] += 100
-            yp += args.yoffset
-            ax.plot(xp+ix_offset, yp+1, 'b:')
-            if args.fibids:
-                ax.text((xmin+xmax)/2, yp[int(num/2)], str(fibid), fontsize=6,
-                        bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="grey",),
-                        color='green', fontweight='bold', backgroundcolor='white')
+            plot_trace(ax, coeff, xmin, xmax, ix_offset, args.yoffset,
+                       args.rawimage, args.fibids, fibid, colour='blue')
         else:
             print('Warning ---> Missing fiber:', fibid)
+
+    # if present, read healing JSON file
+    if args.healing is not None:
+        healdict = json.loads(open(args.healing.name).read())
+        for badfiberdict in healdict['badfibers']:
+            fibid = badfiberdict['fibid']
+            print("(healing) fibid: ", fibid)
+            if badfiberdict['method'] == 'interpolation2':
+                fraction = badfiberdict['fraction']
+                nf1, nf2 = badfiberdict['neighbours']
+                tmpf1 = bigdict['contents'][nf1-1]
+                tmpf2 = bigdict['contents'][nf2-1]
+                if nf1 != tmpf1['fibid'] or nf2 != tmpf2['fibid']:
+                    raise ValueError("Unexpect fiber numbers in neighbours")
+                coefff1 = np.array(tmpf1['fitparms'])
+                coefff2 = np.array(tmpf2['fitparms'])
+                xmin = np.min([tmpf1['start'], tmpf2['start']])
+                xmax = np.min([tmpf1['stop'], tmpf2['stop']])
+                coeff = coefff1 + fraction * (coefff2 - coefff1)
+                plot_trace(ax, coeff, xmin, xmax, ix_offset, args.yoffset,
+                           args.rawimage, args.fibids, fibid, colour='green')
+            else:
+                raise ValueError("Unexpected healing method:",
+                                 badfiberdict['method'])
 
     import matplotlib.pyplot as plt
     plt.show(block=False)
