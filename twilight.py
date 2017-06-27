@@ -3,32 +3,30 @@ from __future__ import print_function
 
 import argparse
 import astropy.io.fits as fits
-import matplotlib.pyplot as plt
 import numpy as np
 
 from numina.array.display.ximplot import ximplot
 from numina.array.display.ximshow import ximshow
-from numina.array.display.pause_debugplot import pause_debugplot
 
 
-def ximplotxy(x, y, plottype=None,
-              xlim=None, ylim=None, debugplot=None):
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    if plottype == 'semilog':
-        ax.semilogy(x, y)
-    else:
-        ax.plot(x, y)
-
-    if xlim is not None:
-        ax.set_xlim(xlim)
-    if ylim is not None:
-        ax.set_ylim(ylim)
-
-    plt.show(block=False)
-    plt.pause(0.001)
-    pause_debugplot(debugplot)
+# def ximplotxy(x, y, plottype=None,
+#               xlim=None, ylim=None, debugplot=None):
+#
+#     fig = plt.figure()
+#     ax = fig.add_subplot(111)
+#     if plottype == 'semilog':
+#         ax.semilogy(x, y)
+#     else:
+#         ax.plot(x, y)
+#
+#     if xlim is not None:
+#         ax.set_xlim(xlim)
+#     if ylim is not None:
+#         ax.set_ylim(ylim)
+#
+#     plt.show(block=False)
+#     plt.pause(0.001)
+#     pause_debugplot(debugplot)
 
 
 def filtmask(sp, fmin=0.02, fmax=0.15, debugplot=0):

@@ -13,14 +13,54 @@ from rsix.ximplotxy import ximplotxy
 from rsix.cosinebell import cosinebell
 
 
-def find_boxes(fitsfile, channels, previous_boxes, debugplot):
+def find_boxes(fitsfile, channels, nsearch, debugplot):
+    """Refine boxes search around previous locations.
+
+    Parameters
+    ----------
+    fitsfile : str
+        FITS image where the new boxes will be measured.
+    channels : tuple (integers)
+        First and last channels (pixels in the x-direction) to extract
+        median vertical cross section.
+    nsearch : int
+        Semi-width of the interval where each refined box location
+        will be sought.
+    debugplot : int
+        Determines whether intermediate computations and/or plots
+        are displayed:
+        00 : no debug, no plots
+        01 : no debug, plots without pauses
+        02 : no debug, plots with pauses
+        10 : debug, no plots
+        11 : debug, plots without pauses
+        12 : debug, plots with pauses
+        21 : debug, additional plots without pauses
+        22 : debug, additional plots with pauses
+
+    Returns
+    -------
+    refined_boxes : numpy array
+        Refined boxes locations.
+
+    """
 
     # read the 2d image
     with fits.open(fitsfile) as hdulist:
+        header = hdulist[0].header
         image2d = hdulist[0].data
     naxis2, naxis1 = image2d.shape
 
-    if debugplot % 10 != 0:
+    # get previous boxes for current VPH, INSMODE and INSCONF
+    vph = header['vph']
+    insmode = header['insmode']
+    insconf = header['insconf']
+    print('>>> VPH:', vph)
+    print('>>> INSMODE:', insmode)
+    print('>>> INSCONF:', insconf)
+    previous_boxes = get_previous_boxes(vph, insmode, insconf)
+
+    if debugplot in (21, 22):
         ximshow(image2d, show=True,
                 title='initial twilight image', debugplot=debugplot)
 
@@ -29,9 +69,10 @@ def find_boxes(fitsfile, channels, previous_boxes, debugplot):
     nc2 = channels[1]
     ycut = np.median(image2d[:, nc1:(nc2+1)], axis=1)
     xcut = np.arange(naxis2) + 1
-    ximplotxy(xcut, ycut, debugplot=debugplot,
-              xlabel='y axis', ylabel='number of counts',
-              title=fitsfile + " [" + str(nc1) + "," + str(nc2) + "]")
+    if debugplot in (21, 22):
+        ximplotxy(xcut, ycut, debugplot=debugplot,
+                  xlabel='y axis', ylabel='number of counts',
+                  title=fitsfile + " [" + str(nc1) + "," + str(nc2) + "]")
 
     # initial manipulation
     ycut -= np.median(ycut)  # subtract median
@@ -39,34 +80,46 @@ def find_boxes(fitsfile, channels, previous_boxes, debugplot):
     ycut *= -1  # invert signal to convert minima in maxima
     mask = cosinebell(n=ycut.size, fraction=0.10)
     ycut *= mask
-    ximplotxy(xcut, ycut, debugplot=debugplot,
-              xlabel='y axis', ylabel='reversed scale')
+    if debugplot in (21, 22):
+        ximplotxy(xcut, ycut, debugplot=debugplot,
+                  xlabel='y axis', ylabel='reversed scale')
 
     # Fourier filtering
     xf = np.fft.fftfreq(xcut.size)
     yf = np.fft.fftpack.fft(ycut)
-    ximplotxy(xf, yf.real, plottype='semilog',
-              xlim=(0., 0.51), debugplot=debugplot)
     cut = (np.abs(xf) > 0.10)
-    yf[cut] = 0.0
-    ycut_filt = np.fft.ifft(yf).real
-    ax = ximplotxy(xcut, ycut_filt, show=False,
-                   xlabel='y axis', ylabel='reversed scale')
-    refined_boxes = np.zeros(previous_boxes.size)
-    nsearch = 20
+    yf_trimmed = np.copy(yf)
+    yf_trimmed[cut] = 0.0
+    ycut_filt = np.fft.ifft(yf_trimmed).real
+    if debugplot in (21, 22):
+        ax = ximplotxy(xf, yf.real, plottype='semilog',
+                       xlim=(0., 0.51), show=False)
+        ax.plot(xf, yf_trimmed.real, label='trimmed')
+        plt.show(block=False)
+        plt.pause(0.001)
+        pause_debugplot(debugplot)
+
+    refined_boxes = np.zeros(previous_boxes.size, dtype=int)
     for ibox, box in enumerate(previous_boxes):
         iargmax = ycut_filt[box - nsearch:box + nsearch + 1].argmax()
         refined_boxes[ibox] = xcut[iargmax + box - nsearch]
-    ax.vlines(previous_boxes, ymin=1.2, ymax=1.3, colors='magenta')
-    ax.vlines(refined_boxes, ymin=1.4, ymax=1.5, colors='green')
 
-    plt.show(block=False)
-    plt.pause(0.001)
-    pause_debugplot(debugplot)
+    for idum in refined_boxes:
+        print(idum)
+
+    if debugplot % 10 != 0:
+        ax = ximplotxy(xcut, ycut_filt, show=False,
+                       xlabel='y axis', ylabel='reversed scale')
+        ax.vlines(previous_boxes, ymin=1.1, ymax=1.3, colors='magenta')
+        ax.vlines(refined_boxes, ymin=1.4, ymax=1.6, colors='green')
+
+        plt.show(block=False)
+        plt.pause(0.001)
+        pause_debugplot(debugplot)
 
 
-def get_previous_boxes(vph, insmode, uuid):
-    """Get previous boxes for the VPH, INSMODE and expected UUID.
+def get_previous_boxes(vph, insmode, insconf):
+    """Get previous boxes for the VPH, INSMODE and INSCONF.
 
     Using numina and megaradrp functionality.
 
@@ -74,7 +127,7 @@ def get_previous_boxes(vph, insmode, uuid):
 
     d = get_system_drps()
     mydrp = d.drps['MEGARA']
-    ic = mydrp.configurations[uuid]
+    ic = mydrp.configurations[insconf]
     boxdict = ic.get('pseudoslit.boxes_positions',
                      **{'vph': vph, 'insmode': insmode})
     return np.array(boxdict['positions'])
@@ -91,6 +144,9 @@ def main(args=None):
                         help="Channel region to extract cross section ",
                         default=(1990, 2010),
                         type=int, nargs=2)
+    parser.add_argument("--nsearch",
+                        help="Semi-width of the search window",
+                        default=20, type=int)
     parser.add_argument("--debugplot",
                         help="integer indicating plotting/debugging" +
                              " (default=10)",
@@ -99,12 +155,7 @@ def main(args=None):
 
     args = parser.parse_args(args=args)
 
-    vph = 'LR-I'
-    insmode = 'LCB'
-    uuid = 'ca3558e3-e50d-4bbc-86bd-da50a0998a48'
-    previous_boxes = get_previous_boxes(vph, insmode, uuid)
-    print('Previous boxes:\n', previous_boxes)
-    find_boxes(args.fitsfile.name, args.channels, previous_boxes,
+    find_boxes(args.fitsfile.name, args.channels, args.nsearch,
                args.debugplot)
 
 
