@@ -104,8 +104,12 @@ def find_boxes(fitsfile, channels, nsearch, debugplot):
         iargmax = ycut_filt[box - nsearch:box + nsearch + 1].argmax()
         refined_boxes[ibox] = xcut[iargmax + box - nsearch]
 
-    for idum in refined_boxes:
-        print(idum)
+    nboxes = refined_boxes.size
+    for i, dum in enumerate(refined_boxes):
+        if i == nboxes - 1:
+            print(dum)
+        else:
+            print(str(dum) + ',')
 
     if debugplot % 10 != 0:
         ax = ximplotxy(xcut, ycut_filt, show=False,
