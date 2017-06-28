@@ -71,6 +71,11 @@ def find_boxes(fitsfile, channels, nsearch, debugplot):
         header = hdulist[0].header
         image2d = hdulist[0].data
     naxis2, naxis1 = image2d.shape
+    print('>>> NAXIS1:', naxis1)
+    print('>>> NAXIS2:', naxis2)
+
+    if naxis1 != 4096 or naxis2 != 4112:
+        raise ValueError("Unexpected (NAXIS1,NAXIS2) dimensions")
 
     # get previous boxes for current VPH, INSMODE and INSCONF
     vph = header['vph']

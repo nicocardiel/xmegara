@@ -1,0 +1,40 @@
+{
+  "badfibers": [
+    {
+      "fibid": 535,
+      "method": "interpolation2",
+      "fraction": 0.5,
+      "neighbours": [
+        534,
+        536
+      ]
+    },
+    {
+      "fibid": 607,
+      "method": "interpolation2",
+      "fraction": 0.5,
+      "neighbours": [
+        606,
+        608
+      ]
+    },
+    {
+      "fibid": 610,
+      "method": "interpolation2",
+      "fraction": 0.5,
+      "neighbours": [
+        609,
+        611
+      ]
+    },
+    {
+      "fibid": 614,
+      "method": "interpolation2",
+      "fraction": 0.5,
+      "neighbours": [
+        613,
+        615
+      ]
+    }
+  ]
+}
