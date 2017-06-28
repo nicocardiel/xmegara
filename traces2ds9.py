@@ -75,7 +75,7 @@ def main(args=None):
                         type=argparse.FileType('w'))
     # optional parameters
     parser.add_argument("--numpix",
-                        help="Number of pixels/trace",
+                        help="Number of pixels/trace (default 100)",
                         default=100, type=int)
     parser.add_argument("--rawimage",
                         help="FITS file is a RAW image (RSS assumed instead)",
@@ -88,6 +88,9 @@ def main(args=None):
 
     traces2ds9(args.json_file.name, args.ds9_file.name, args.rawimage,
                args.numpix)
+
+    print("""ToDo:
+- display fibids (not implemented yet)""")
 
 
 if __name__ == "__main__":
