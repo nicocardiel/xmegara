@@ -7,7 +7,7 @@ import numpy as np
 from numpy.polynomial import Polynomial
 
 
-def traces2ds9(json_file, ds9_file, rawimage, xstep=10):
+def traces2ds9(json_file, ds9_file, rawimage, numpix):
     """Transfor fiber traces from JSON to ds9-region format.
 
     Parameters
@@ -19,8 +19,8 @@ def traces2ds9(json_file, ds9_file, rawimage, xstep=10):
     rawimage : bool
         If True the traces must be generated to be overplotted on
         raw FITS images.
-    xstep : int
-        Abscissa step to compute polynomial.
+    numpix : int
+        Number of abscissae per fiber trace.
 
     """
 
@@ -32,11 +32,11 @@ def traces2ds9(json_file, ds9_file, rawimage, xstep=10):
 
     # open output file and insert header
     f = open(ds9_file, 'w')
-    f.write('# Region file format: DS9 version 4.1')
-    f.write('global color=green dashlist=8 3 width=1 font="helvetica 10 '
-            '"normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 '
-            'move=1 delete=1 include=1 source=1')
-    f.write('physical')
+    f.write('# Region file format: DS9 version 4.1\n')
+    f.write('global color=green dashlist=1 5 width=1 font="helvetica 10 '
+            'normal roman" select=1 highlite=1 dash=1 fixed=0 edit=1 '
+            'move=1 delete=1 include=1 source=1\n')
+    f.write('physical\n')
 
     # read traces from JSON file and save region in ds9 file
     bigdict = json.loads(open(json_file).read())
@@ -47,15 +47,15 @@ def traces2ds9(json_file, ds9_file, rawimage, xstep=10):
         coeff = np.array(fiberdict['fitparms'])
         # skip fibers without trace
         if len(coeff) > 0:
-            xp = np.arange(xmin, xmax + 1, xstep)
+            xp = np.linspace(start=xmin, stop=xmax, num=numpix)
             ypol = Polynomial(coeff)
             yp = ypol(xp)
             for i in range(len(xp)-1):
                 x1 = str(xp[i] + ix_offset)
-                y1 = str(yp[i])
+                y1 = str(yp[i] + 1)
                 x2 = str(xp[i+1] + ix_offset)
-                y2 = str(yp[i+1])
-                f.write('line ' + x1 + ' ' + y1 + ' ' + x2 + ' ' + y2)
+                y2 = str(yp[i+1] + 1)
+                f.write('line ' + x1 + ' ' + y1 + ' ' + x2 + ' ' + y2 + ' \n')
         else:
             print('Warning ---> Missing fiber:', fibid)
 
@@ -74,6 +74,9 @@ def main(args=None):
                         help="Output region file in ds9 format",
                         type=argparse.FileType('w'))
     # optional parameters
+    parser.add_argument("--numpix",
+                        help="Number of pixels/trace",
+                        default=100, type=int)
     parser.add_argument("--rawimage",
                         help="FITS file is a RAW image (RSS assumed instead)",
                         action="store_true")
@@ -83,7 +86,8 @@ def main(args=None):
 
     args = parser.parse_args(args=args)
 
-    traces2ds9(args.json_file.name, args.ds9_file.name, args.rawimage)
+    traces2ds9(args.json_file.name, args.ds9_file.name, args.rawimage,
+               args.numpix)
 
 
 if __name__ == "__main__":
