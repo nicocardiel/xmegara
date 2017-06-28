@@ -27,7 +27,7 @@ def plot_trace(ax, coeff, xmin, xmax, ix_offset,
     ax.plot(xp + ix_offset, yp + 1, color=colour, linestyle='dotted')
     if fibids:
         if xmin == xmax == 0:
-            xmidpoint =  2048
+            xmidpoint = 2048
         else:
             xmidpoint = (xmin+xmax)/2
         ax.text(xmidpoint, yp[int(num / 2)], str(fibid), fontsize=6,
@@ -153,6 +153,7 @@ def main(args=None):
     plt.show(block=False)
     plt.pause(0.001)
     pause_debugplot(12)
+
 
 if __name__ == "__main__":
 
