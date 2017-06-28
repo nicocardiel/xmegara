@@ -35,37 +35,46 @@ def traces2ds9(json_file, ds9_file, rawimage, numpix=100, fibid_at=0):
     # open output file and insert header
 
     ds9_file.write('# Region file format: DS9 version 4.1\n')
-    ds9_file.write('global color=green dashlist=2 4 width=1 '
+    ds9_file.write('global color=green dashlist=2 4 width=2 '
                    'font="helvetica 10 normal roman" select=1 '
                    'highlite=1 dash=1 fixed=0 edit=1 '
                    'move=1 delete=1 include=1 source=1\n')
     ds9_file.write('physical\n')
 
     # read traces from JSON file and save region in ds9 file
+    colorbox = ['#ff77ff','#4444ff']
     bigdict = json.loads(open(json_file).read())
+    uuid = bigdict['uuid']
+    ds9_file.write('# uuid: {0}\n'.format(uuid))
     for fiberdict in bigdict['contents']:
         fibid = fiberdict['fibid']
+        boxid = fiberdict['boxid']
         xmin = fiberdict['start']
         xmax = fiberdict['stop']
         coeff = np.array(fiberdict['fitparms'])
-        # skip fibers without trace
         ds9_file.write('# fibid: ' + str(fibid) + '\n')
+        # skip fibers without trace
         if len(coeff) > 0:
             xp = np.linspace(start=xmin, stop=xmax, num=numpix)
             ypol = Polynomial(coeff)
             yp = ypol(xp)
+            if rawimage:
+                lcut = (yp > 2056.5)
+                yp[lcut] += 100
             for i in range(len(xp)-1):
                 x1 = xp[i] + ix_offset
                 y1 = yp[i] + 1
                 x2 = xp[i+1] + ix_offset
                 y2 = yp[i+1] + 1
                 ds9_file.write('line ' + str(x1) + ' ' + str(y1) + ' ' +
-                               str(x2) + ' ' + str(y2) + '\n')
+                               str(x2) + ' ' + str(y2))
+                ds9_file.write(' # color=' + colorbox[boxid % 2] + '\n')
                 if fibid_at != 0:
                     if x1 <= fibid_at <= x2:
                         ds9_file.write('text ' + str((x1+x2)/2) + ' ' +
                                        str((y1+y2)/2) + ' {' + str(fibid) +
-                                       '}  # color=blue\n')
+                                       '}  # color=green font="helvetica 10 '
+                                       'bold roman"\n')
         else:
             print('Warning ---> Missing fiber:', fibid)
 
