@@ -7,20 +7,22 @@ import numpy as np
 from numpy.polynomial import Polynomial
 
 
-def traces2ds9(json_file, ds9_file, rawimage, numpix):
+def traces2ds9(json_file, ds9_file, rawimage, numpix=100, fibid_at=0):
     """Transfor fiber traces from JSON to ds9-region format.
 
     Parameters
     ----------
     json_file : str
         Input JSON file name.
-    ds9_file : str
-        Output file name in ds9-region format.
+    ds9_file : file
+        Handle to output file name in ds9-region format.
     rawimage : bool
         If True the traces must be generated to be overplotted on
         raw FITS images.
     numpix : int
         Number of abscissae per fiber trace.
+    fibid_at : int
+        Abscissae where the fibid is shown (default=0 -> not shown).
 
     """
 
@@ -31,12 +33,13 @@ def traces2ds9(json_file, ds9_file, rawimage, numpix):
         ix_offset = 1
 
     # open output file and insert header
-    f = open(ds9_file, 'w')
-    f.write('# Region file format: DS9 version 4.1\n')
-    f.write('global color=green dashlist=1 5 width=1 font="helvetica 10 '
-            'normal roman" select=1 highlite=1 dash=1 fixed=0 edit=1 '
-            'move=1 delete=1 include=1 source=1\n')
-    f.write('physical\n')
+
+    ds9_file.write('# Region file format: DS9 version 4.1\n')
+    ds9_file.write('global color=green dashlist=2 4 width=1 '
+                   'font="helvetica 10 normal roman" select=1 '
+                   'highlite=1 dash=1 fixed=0 edit=1 '
+                   'move=1 delete=1 include=1 source=1\n')
+    ds9_file.write('physical\n')
 
     # read traces from JSON file and save region in ds9 file
     bigdict = json.loads(open(json_file).read())
@@ -46,21 +49,25 @@ def traces2ds9(json_file, ds9_file, rawimage, numpix):
         xmax = fiberdict['stop']
         coeff = np.array(fiberdict['fitparms'])
         # skip fibers without trace
+        ds9_file.write('# fibid: ' + str(fibid) + '\n')
         if len(coeff) > 0:
             xp = np.linspace(start=xmin, stop=xmax, num=numpix)
             ypol = Polynomial(coeff)
             yp = ypol(xp)
             for i in range(len(xp)-1):
-                x1 = str(xp[i] + ix_offset)
-                y1 = str(yp[i] + 1)
-                x2 = str(xp[i+1] + ix_offset)
-                y2 = str(yp[i+1] + 1)
-                f.write('line ' + x1 + ' ' + y1 + ' ' + x2 + ' ' + y2 + ' \n')
+                x1 = xp[i] + ix_offset
+                y1 = yp[i] + 1
+                x2 = xp[i+1] + ix_offset
+                y2 = yp[i+1] + 1
+                ds9_file.write('line ' + str(x1) + ' ' + str(y1) + ' ' +
+                               str(x2) + ' ' + str(y2) + '\n')
+                if fibid_at != 0:
+                    if x1 <= fibid_at <= x2:
+                        ds9_file.write('text ' + str((x1+x2)/2) + ' ' +
+                                       str((y1+y2)/2) + ' {' + str(fibid) +
+                                       '}  # color=blue\n')
         else:
             print('Warning ---> Missing fiber:', fibid)
-
-    # close output file
-    f.close()
 
 
 def main(args=None):
@@ -80,17 +87,14 @@ def main(args=None):
     parser.add_argument("--rawimage",
                         help="FITS file is a RAW image (RSS assumed instead)",
                         action="store_true")
-    parser.add_argument("--fibids",
-                        help="Display fiber identification number",
-                        action="store_true")
+    parser.add_argument("--fibid_at",
+                        help="Display fiber identification number at location",
+                        default=0, type=int)
 
     args = parser.parse_args(args=args)
 
-    traces2ds9(args.json_file.name, args.ds9_file.name, args.rawimage,
-               args.numpix)
-
-    print("""ToDo:
-- display fibids (not implemented yet)""")
+    traces2ds9(args.json_file.name, args.ds9_file, args.rawimage,
+               args.numpix, args.fibid_at)
 
 
 if __name__ == "__main__":
