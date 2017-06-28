@@ -8,9 +8,30 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numina.array.display.ximshow import ximshow
 from numina.array.display.pause_debugplot import pause_debugplot
+from numina.array.display.ximplotxy import ximplotxy
 from numina.drps import get_system_drps
-from rsix.ximplotxy import ximplotxy
-from rsix.cosinebell import cosinebell
+
+
+def cosinebell(n, fraction):
+    """Return a cosine bell spanning n pixels, masking a fraction of pixels
+
+    Parameters
+    ----------
+    n : int
+        Number of pixels.
+    fraction : float
+        Length fraction over which the data will be masked.
+
+    """
+
+    mask = np.ones(n)
+    nmasked = int(fraction * n)
+    for i in range(nmasked):
+        yval = 0.5 * (1 - np.cos(np.pi * float(i) / float(nmasked)))
+        mask[i] = yval
+        mask[n - i - 1] = yval
+
+    return mask
 
 
 def find_boxes(fitsfile, channels, nsearch, debugplot):
@@ -93,8 +114,10 @@ def find_boxes(fitsfile, channels, nsearch, debugplot):
     ycut_filt = np.fft.ifft(yf_trimmed).real
     if debugplot in (21, 22):
         ax = ximplotxy(xf, yf.real, plottype='semilog',
-                       xlim=(0., 0.51), show=False)
+                       xlim=(0., 0.51), show=False,
+                       label='original', linestyle='dotted')
         ax.plot(xf, yf_trimmed.real, label='trimmed')
+        ax.legend()
         plt.show(block=False)
         plt.pause(0.001)
         pause_debugplot(debugplot)
