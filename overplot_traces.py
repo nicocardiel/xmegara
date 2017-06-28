@@ -105,7 +105,7 @@ def main(args=None):
             bigdict['contents'][fibid-1]['fitparms'] = coeff.tolist()
             if args.extrapolate:
                 plot_trace(ax, coeff, 0, 0, ix_offset,
-                           args.rawimage, args.fibids, fibid, colour='grey')
+                           args.rawimage, False, fibid, colour='grey')
             plot_trace(ax, coeff, xmin, xmax, ix_offset,
                        args.rawimage, args.fibids, fibid, colour='blue')
         else:

@@ -7,26 +7,7 @@ import numpy as np
 
 from numina.array.display.ximplot import ximplot
 from numina.array.display.ximshow import ximshow
-
-
-# def ximplotxy(x, y, plottype=None,
-#               xlim=None, ylim=None, debugplot=None):
-#
-#     fig = plt.figure()
-#     ax = fig.add_subplot(111)
-#     if plottype == 'semilog':
-#         ax.semilogy(x, y)
-#     else:
-#         ax.plot(x, y)
-#
-#     if xlim is not None:
-#         ax.set_xlim(xlim)
-#     if ylim is not None:
-#         ax.set_ylim(ylim)
-#
-#     plt.show(block=False)
-#     plt.pause(0.001)
-#     pause_debugplot(debugplot)
+from numina.array.display.ximplotxy import ximplotxy
 
 
 def filtmask(sp, fmin=0.02, fmax=0.15, debugplot=0):
@@ -173,7 +154,7 @@ def process_twilight(fitsfile, debugplot):
     spmedian_filtmask = filtmask(spmedian, debugplot=debugplot)
 
     for i in range(5):
-        sp_filtmask = filtmask(image2d[i,:])
+        sp_filtmask = filtmask(image2d[i, :])
         if debugplot % 10 != 0:
             ximplot(sp_filtmask, title="median spectrum of scan " + str(i),
                     plot_bbox=(1, spmedian.size), debugplot=debugplot)
@@ -199,6 +180,7 @@ def main(args=None):
     args = parser.parse_args(args=args)
 
     process_twilight(args.fitsfile.name, args.debugplot)
+
 
 if __name__ == "__main__":
 
