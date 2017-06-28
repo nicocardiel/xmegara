@@ -12,7 +12,7 @@ from numina.array.display.pause_debugplot import pause_debugplot
 
 
 def plot_trace(ax, coeff, xmin, xmax, ix_offset,
-              rawimage, fibids, fibid, colour):
+               rawimage, fibids, fibid, colour):
     num = int(float(xmax - xmin + 1) + 0.5)
     xp = np.linspace(start=xmin, stop=xmax, num=num)
     ypol = Polynomial(coeff)
