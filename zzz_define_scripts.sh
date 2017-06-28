@@ -9,6 +9,9 @@ alias MEGARA_overplot_traces='python ~/s/xmegara/overplot_traces.py'
 # note: overplot_traces.py is also found in megaradrp/tools
 
 alias MEGARA_traces2ds9='python ~/s/xmegara/traces2ds9.py'
+# this functionality has been incorporated in megaradrp; see:
+# megaradrp/products/tracemap.py,
+# megaradrp/recipes/calibration/trace.py
 
 alias MEGARA_twilight='python ~/s/xmegara/twilight.py'
 
