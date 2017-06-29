@@ -130,7 +130,7 @@ def find_boxes(fitsfile, channels, nsearch, debugplot):
     refined_boxes = np.zeros(previous_boxes.size, dtype=int)
     for ibox, box in enumerate(previous_boxes):
         iargmax = ycut_filt[box - nsearch:box + nsearch + 1].argmax()
-        refined_boxes[ibox] = xcut[iargmax + box - nsearch]
+        refined_boxes[ibox] = iargmax + box - nsearch
 
     offsets = np.copy(refined_boxes)
     offsets -= previous_boxes
