@@ -8,6 +8,7 @@ import numpy as np
 from numina.array.display.ximplot import ximplot
 from numina.array.display.ximshow import ximshow
 from numina.array.display.ximplotxy import ximplotxy
+from numina.array.wavecalib.peaks_spectrum import refine_peaks_spectrum
 
 
 def filtmask(sp, fmin=0.02, fmax=0.15, debugplot=0):
@@ -42,7 +43,7 @@ def filtmask(sp, fmin=0.02, fmax=0.15, debugplot=0):
     # Fourier filtering
     xf = np.fft.fftfreq(sp.size)
     yf = np.fft.fft(sp)
-    if debugplot % 10 != 0:
+    if debugplot in (21, 22):
         ximplotxy(xf, yf.real, xlim=(0, 0.51),
                   plottype='semilog', debugplot=debugplot)
 
@@ -50,17 +51,17 @@ def filtmask(sp, fmin=0.02, fmax=0.15, debugplot=0):
     yf[cut] = 0.0
     cut = (np.abs(xf) < fmin)
     yf[cut] = 0.0
-    if debugplot % 10 != 0:
+    if debugplot in (21, 22):
         ximplotxy(xf, yf.real, xlim=(0, 0.51),
                   plottype='semilog', debugplot=debugplot)
 
     sp_filt = np.fft.ifft(yf).real
-    if debugplot % 10 != 0:
+    if debugplot in (21, 22):
         ximplot(sp_filt, title="filtered median spectrum",
                 plot_bbox=(1, sp_filt.size), debugplot=debugplot)
 
     sp_filtmask = sp_filt * cosinebell(sp_filt.size, 0.1)
-    if debugplot % 10 != 0:
+    if debugplot in (21, 22):
         ximplot(sp_filtmask, title="filtered and masked median spectrum",
                 plot_bbox=(1, sp_filt.size), debugplot=debugplot)
 
@@ -118,13 +119,75 @@ def cosinebell(n, fraction):
     return mask
 
 
-def process_twilight(fitsfile, debugplot):
+def oversample1d(sp, crval1, crvaln, oversampling=1):
+    """Oversample spectrum.
+
+    Parameters
+    ----------
+    sp : numpy array
+        Spectrum to be oversampled.
+    crval1 : float
+        Abscissae of the center of the first pixel in the original
+        spectrum 'sp'.
+    crvaln : float
+        Abscissae of the center of the last pixel in the original
+        spectrum 'sp'.
+    oversampling : int
+        Oversampling value per pixel.
+
+    Returns
+    -------
+    sp_over : numpy array
+        Oversampled data array.
+    crval1_over : float
+        Abscissae of the center of the first pixel in the oversampled
+        spectrum.
+    cdelt1_over : float
+        Abscissae of the center of the last pixel in the oversampled
+        spectrum.
+
+    """
+
+    if sp.ndim != 1:
+        raise ValueError('Unexpected array dimensions')
+
+    naxis1 = sp.size
+    naxis1_over = naxis1 * oversampling
+
+    cdelt1 = (crvaln - crval1) / (naxis1 - 1)
+    cdelt1_over = cdelt1 / oversampling
+
+    xmin = crval1 - cdelt1/2  # left border of first pixel
+    crval1_over = xmin + cdelt1_over / 2
+
+    sp_over = np.zeros(naxis1_over)
+
+    for i in range(naxis1):
+        i1 = i * oversampling
+        i2 = i1 + oversampling
+        sp_over[i1:i2] = sp[i]
+
+    # crvaln_over = crval1_over + (naxis1_over - 1) * cdelt1_over
+    # xover = np.linspace(crval1_over, crvaln_over, naxis1_over)
+    # import matplotlib.pyplot as plt
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111)
+    # ax.plot(np.linspace(crval1, crvaln, naxis1), sp, 'bo')
+    # ax.plot(xover, sp_over, 'r+')
+    # plt.show()
+
+    return sp_over, crval1_over, cdelt1_over
+
+
+def process_twilight(fitsfile, oversampling, debugplot):
     """Process twilight image.
 
     Parameters
     ----------
     fitsfile : str
         Twilight RSS FITS file name.
+    oversampling : int
+        Oversampling of each pixel.
     debugplot : int
         Determines whether intermediate computations and/or plots
         are displayed:
@@ -140,28 +203,60 @@ def process_twilight(fitsfile, debugplot):
     # read the 2d image
     with fits.open(fitsfile) as hdulist:
         image2d = hdulist[0].data
+    naxis2, naxis1 = image2d.shape
     if debugplot % 10 != 0:
         ximshow(image2d, show=True,
                 title='initial twilight image', debugplot=debugplot)
 
-    # compute median spectrum
+    # median spectrum
     spmedian = np.median(image2d, axis=0)
     if debugplot % 10 != 0:
         ximplot(spmedian, title="median spectrum",
                 plot_bbox=(1, spmedian.size), debugplot=debugplot)
 
-    # compute filtered and masked median spectrum
+    # filtered and masked median spectrum
     spmedian_filtmask = filtmask(spmedian, debugplot=debugplot)
 
-    for i in range(5):
+    # periodic correlation
+
+    xcorr = np.arange(naxis1)
+    naxis1_half = int(naxis1/2)
+    for i in range(naxis1_half):
+        xcorr[i + naxis1_half] -= naxis1
+    isort = xcorr.argsort()
+    xcorr = xcorr[isort]
+    naxis2_half = int(naxis2/2)
+
+    offsets = np.zeros(naxis2)
+    for i in range(naxis2):
         sp_filtmask = filtmask(image2d[i, :])
-        if debugplot % 10 != 0:
+        if i == naxis2_half and (debugplot in (21, 22)):
             ximplot(sp_filtmask, title="median spectrum of scan " + str(i),
                     plot_bbox=(1, spmedian.size), debugplot=debugplot)
-        corr = periodic_corr1d(spmedian_filtmask, sp_filtmask)
-        if debugplot % 10 != 0:
-            ximplot(corr, title="periodic correlation with scan " + str(i),
-                    plot_bbox=(1, corr.size), debugplot=debugplot)
+        corr = periodic_corr1d(sp_filtmask, spmedian_filtmask)
+        corr = corr[isort]
+        if i == naxis2_half and (debugplot in (21, 22)):
+            ximplotxy(xcorr, corr,
+                      title="periodic correlation with scan " + str(i),
+                      xlim=(-20, 20), debugplot=debugplot)
+        ixpeak = np.array([corr.argmax()])
+        xdum, sdum = refine_peaks_spectrum(corr, ixpeak, 7,
+                                           method='gaussian')
+        offsets[i] = xdum - naxis1_half
+
+    ximplotxy(np.arange(naxis2)+1, offsets, ylim=(-10, 10),
+              xlabel='pixel in the NAXIS2 direction',
+              ylabel='offset (pixels) in the NAXIS1 direction',
+              debugplot=debugplot)
+
+    # # oversampling
+    # spmedian_over = np.zeros(naxis1*oversampling)
+    # for i in range(naxis2):
+    #     sp_filtmask = filtmask(image2d[i, :])
+    #
+    #
+    # ximplotxy(np.arange(naxis1*nover)+1, sp_oversampled,
+    #           debugplot=debugplot)
 
 
 def main(args=None):
@@ -171,6 +266,9 @@ def main(args=None):
     parser.add_argument("fitsfile",
                         help="Twilight FITS image",
                         type=argparse.FileType('r'))
+    parser.add_argument("oversampling",
+                        help="Oversampling (1=none; default)",
+                        default=1, type=int)
     parser.add_argument("--debugplot",
                         help="integer indicating plotting/debugging" +
                              " (default=10)",
@@ -179,7 +277,7 @@ def main(args=None):
 
     args = parser.parse_args(args=args)
 
-    process_twilight(args.fitsfile.name, args.debugplot)
+    process_twilight(args.fitsfile.name, args.oversampling, args.debugplot)
 
 
 if __name__ == "__main__":
