@@ -179,108 +179,6 @@ def oversample1d(sp, crval1, cdelt1, oversampling=1):
     return sp_over, crval1_over, cdelt1_over
 
 
-def process_twilight(fitsfile, oversampling, debugplot):
-    """Process twilight image.
-
-    Parameters
-    ----------
-    fitsfile : str
-        Twilight RSS FITS file name.
-    oversampling : int
-        Oversampling of each pixel.
-    debugplot : int
-        Determines whether intermediate computations and/or plots
-        are displayed:
-        00 : no debug, no plots
-        01 : no debug, plots without pauses
-        02 : no debug, plots with pauses
-        10 : debug, no plots
-        11 : debug, plots without pauses
-        12 : debug, plots with pauses
-
-    """
-
-    # read the 2d image
-    with fits.open(fitsfile) as hdulist:
-        image2d = hdulist[0].data
-    naxis2, naxis1 = image2d.shape
-    if debugplot % 10 != 0:
-        ximshow(image2d, show=True,
-                title='initial twilight image', debugplot=debugplot)
-
-    # median spectrum
-    spmedian = np.median(image2d, axis=0)
-    if debugplot % 10 != 0:
-        ximplot(spmedian, title="median spectrum",
-                plot_bbox=(1, naxis1), debugplot=debugplot)
-
-    # filtered and masked median spectrum
-    spmedian_filtmask = filtmask(spmedian, debugplot=debugplot)
-
-    # periodic correlation
-
-    xcorr = np.arange(naxis1)
-    naxis1_half = int(naxis1/2)
-    for i in range(naxis1_half):
-        xcorr[i + naxis1_half] -= naxis1
-    isort = xcorr.argsort()
-    xcorr = xcorr[isort]
-    naxis2_half = int(naxis2/2)
-
-    offsets = np.zeros(naxis2)
-    for i in range(naxis2):
-        sp_filtmask = filtmask(image2d[i, :])
-        if i == naxis2_half and (debugplot in (21, 22)):
-            ximplot(sp_filtmask, title="median spectrum of scan " + str(i),
-                    plot_bbox=(1, spmedian.size), debugplot=debugplot)
-        corr = periodic_corr1d(sp_filtmask, spmedian_filtmask)
-        corr = corr[isort]
-        if i == naxis2_half and (debugplot in (21, 22)):
-            ximplotxy(xcorr, corr,
-                      title="periodic correlation with scan " + str(i),
-                      xlim=(-20, 20), debugplot=debugplot)
-        ixpeak = np.array([corr.argmax()])
-        xdum, sdum = refine_peaks_spectrum(corr, ixpeak, 7,
-                                           method='gaussian')
-        offsets[i] = xdum - naxis1_half
-
-    ximplotxy(np.arange(naxis2)+1, offsets, ylim=(-10, 10),
-              xlabel='pixel in the NAXIS2 direction',
-              ylabel='offset (pixels) in the NAXIS1 direction',
-              debugplot=debugplot)
-
-    # oversampling
-    naxis1_over = naxis1 * oversampling
-    image2d_over = np.zeros((naxis2, naxis1_over))
-    xplot = np.linspace(1, naxis1, naxis1)
-    xplot_over = np.linspace(1, naxis1, naxis1_over)
-    for i in range(naxis2):
-        sp_over, crval1_over, cdelt1_over = \
-            oversample1d(image2d[i, :], crval1=1, cdelt1=1,
-                         oversampling=oversampling)
-        sp_over_shifted = shiftx_image2d_flux(sp_over,
-                                              -offsets[i]*oversampling)
-        image2d_over[i] = sp_over_shifted
-        # ax = ximplotxy(xplot, spmedian, title='scan' + str(i), show=False)
-        # ax.plot(xplot_over, sp_over, 'b+')
-        # ax.plot(xplot_over, sp_over_shifted, 'g.')
-        # ax.set_xlim([1760, 1790])
-        # plt.show(block=False)
-        # plt.pause(0.001)
-        # pause_debugplot(debugplot)
-        # plt.close()
-
-    ximshow(image2d_over, debugplot=debugplot)
-
-    # spmedian_over = np.zeros(naxis1*oversampling)
-    # for i in range(naxis2):
-    #     sp_filtmask = filtmask(image2d[i, :])
-    #
-    #
-    # ximplotxy(np.arange(naxis1*nover)+1, sp_oversampled,
-    #           debugplot=debugplot)
-
-
 def shiftx_image2d_flux(image2d_orig, xoffset):
     """Resample a 2D image using a shift in the x direction.
 
@@ -300,7 +198,7 @@ def shiftx_image2d_flux(image2d_orig, xoffset):
 
     if image2d_orig.ndim == 1:
         naxis1 = image2d_orig.size
-    elif image2d_orig.ndim ==2:
+    elif image2d_orig.ndim == 2:
         naxis2, naxis1 = image2d_orig.shape
     else:
         print('>>> image2d_orig.shape:', image2d_orig.shape)
@@ -352,7 +250,7 @@ def resample_image2d_flux(image2d_orig,
         nchan = image2d_orig.size
         image2d = np.zeros((nscan, nchan))
         image2d[0, :] = np.copy(image2d_orig)
-    elif image2d_orig.ndim ==2:
+    elif image2d_orig.ndim == 2:
         nscan, nchan = image2d_orig.shape
         image2d = np.copy(image2d_orig)
     else:
@@ -403,6 +301,109 @@ def map_borders(wls):
     all_borders[0] = 2 * wls[0] - midpt_wl[0]
     all_borders[-1] = 2 * wls[-1] - midpt_wl[-1]
     return all_borders
+
+
+def process_twilight(fitsfile, oversampling, debugplot):
+    """Process twilight image.
+
+    Parameters
+    ----------
+    fitsfile : str
+        Twilight RSS FITS file name.
+    oversampling : int
+        Oversampling of each pixel.
+    debugplot : int
+        Determines whether intermediate computations and/or plots
+        are displayed:
+        00 : no debug, no plots
+        01 : no debug, plots without pauses
+        02 : no debug, plots with pauses
+        10 : debug, no plots
+        11 : debug, plots without pauses
+        12 : debug, plots with pauses
+
+    """
+
+    # read the 2d image
+    with fits.open(fitsfile) as hdulist:
+        image2d = hdulist[0].data
+    naxis2, naxis1 = image2d.shape
+    if debugplot in (21, 22):
+        ximshow(image2d, show=True,
+                title='initial twilight image', debugplot=debugplot)
+
+    # median spectrum
+    spmedian = np.median(image2d, axis=0)
+    if debugplot in (21, 22):
+        ximplot(spmedian, title="median spectrum",
+                plot_bbox=(1, naxis1), debugplot=debugplot)
+
+    # filtered and masked median spectrum
+    spmedian_filtmask = filtmask(spmedian, debugplot=debugplot)
+
+    # periodic correlation
+    xcorr = np.arange(naxis1)
+    naxis1_half = int(naxis1/2)
+    for i in range(naxis1_half):
+        xcorr[i + naxis1_half] -= naxis1
+    isort = xcorr.argsort()
+    xcorr = xcorr[isort]
+    naxis2_half = int(naxis2/2)
+
+    offsets = np.zeros(naxis2)
+    for i in range(naxis2):
+        sp_filtmask = filtmask(image2d[i, :])
+        if i == naxis2_half and (debugplot in (21, 22)):
+            ximplot(sp_filtmask, title="median spectrum of scan " + str(i),
+                    plot_bbox=(1, spmedian.size), debugplot=debugplot)
+        corr = periodic_corr1d(sp_filtmask, spmedian_filtmask)
+        corr = corr[isort]
+        if i == naxis2_half and (debugplot in (21, 22)):
+            ximplotxy(xcorr, corr,
+                      title="periodic correlation with scan " + str(i),
+                      xlim=(-20, 20), debugplot=debugplot)
+        ixpeak = np.array([corr.argmax()])
+        xdum, sdum = refine_peaks_spectrum(corr, ixpeak, 7,
+                                           method='gaussian')
+        offsets[i] = xdum - naxis1_half
+
+    if debugplot in (21, 22):
+        ximplotxy(np.arange(naxis2)+1, offsets, ylim=(-10, 10),
+                  xlabel='pixel in the NAXIS2 direction',
+                  ylabel='offset (pixels) in the NAXIS1 direction',
+                  debugplot=debugplot)
+
+    # oversampling
+    naxis1_over = naxis1 * oversampling
+    image2d_over = np.zeros((naxis2, naxis1_over))
+    for i in range(naxis2):
+        sp_over, crval1_over, cdelt1_over = \
+            oversample1d(image2d[i, :], crval1=1, cdelt1=1,
+                         oversampling=oversampling)
+        sp_over_shifted = \
+            shiftx_image2d_flux(sp_over, -offsets[i]*oversampling)
+        image2d_over[i] = sp_over_shifted
+
+    if debugplot in (21, 22):
+        ximshow(image2d_over, debugplot=debugplot)
+
+    spmedian_over = np.median(image2d_over, axis=0)
+
+    if debugplot % 10 != 0:
+        xplot = np.linspace(1, naxis1, naxis1)
+        xplot_over = np.linspace(1, naxis1, naxis1_over)
+        ax = ximplotxy(xplot, spmedian,
+                       show=False, label='median')
+        ax.plot(xplot_over, spmedian_over, 'b-', label='oversampled median')
+        ax.legend()
+        plt.show(block=False)
+        plt.pause(0.001)
+        pause_debugplot(debugplot)
+
+    image2d_over_norm = image2d_over / spmedian_over
+    image2d_over_norm[np.isnan(image2d_over_norm)] = 1
+
+    ximshow(image2d_over_norm, debugplot=debugplot)
 
 
 def main(args=None):
