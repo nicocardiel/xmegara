@@ -179,6 +179,18 @@ def oversample1d(sp, crval1, cdelt1, oversampling=1):
     return sp_over, crval1_over, cdelt1_over
 
 
+def rebin(a, *args):
+    """See http://scipy-cookbook.readthedocs.io/items/Rebinning.html"""
+    shape = a.shape
+    lenShape = len(shape)
+    factor = np.asarray(shape)//np.asarray(args)
+    evList = ['a.reshape('] + \
+             ['args[%d],factor[%d],'%(i,i) for i in range(lenShape)] + \
+             [')'] + ['.mean(%d)'%(i+1) for i in range(lenShape)]
+    #print(''.join(evList))
+    return eval(''.join(evList))
+
+
 def shiftx_image2d_flux(image2d_orig, xoffset):
     """Resample a 2D image using a shift in the x direction.
 
@@ -404,6 +416,10 @@ def process_twilight(fitsfile, oversampling, debugplot):
     image2d_over_norm[np.isnan(image2d_over_norm)] = 1
 
     ximshow(image2d_over_norm, debugplot=debugplot)
+
+    image2d_final = rebin(image2d_over_norm, naxis2, naxis1)
+
+    ximshow(image2d_final, debugplot=debugplot)
 
 
 def main(args=None):
