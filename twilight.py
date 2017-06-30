@@ -180,10 +180,18 @@ def oversample1d(sp, crval1, cdelt1, oversampling=1):
 
 
 def rebin(a, *args):
-    """See http://scipy-cookbook.readthedocs.io/items/Rebinning.html"""
+    """See http://scipy-cookbook.readthedocs.io/items/Rebinning.html
+
+    Note: integer division in the computation of 'factor' has been
+    included to avoid the following runtime message:
+    VisibleDeprecationWarning: using a non-integer number instead of
+    an integer will result in an error in the future
+    from __future__ import division
+
+    """
     shape = a.shape
     lenShape = len(shape)
-    factor = np.asarray(shape)//np.asarray(args)
+    factor = np.asarray(shape) // np.asarray(args)
     evList = ['a.reshape('] + \
              ['args[%d],factor[%d],'%(i,i) for i in range(lenShape)] + \
              [')'] + ['.mean(%d)'%(i+1) for i in range(lenShape)]
@@ -315,7 +323,7 @@ def map_borders(wls):
     return all_borders
 
 
-def process_twilight(fitsfile, oversampling, debugplot):
+def process_twilight(fitsfile, oversampling, outfile, debugplot):
     """Process twilight image.
 
     Parameters
@@ -324,6 +332,8 @@ def process_twilight(fitsfile, oversampling, debugplot):
         Twilight RSS FITS file name.
     oversampling : int
         Oversampling of each pixel.
+    outfile : file
+        Output FITS file name.
     debugplot : int
         Determines whether intermediate computations and/or plots
         are displayed:
@@ -338,6 +348,7 @@ def process_twilight(fitsfile, oversampling, debugplot):
 
     # read the 2d image
     with fits.open(fitsfile) as hdulist:
+        image2d_header = hdulist[0].header
         image2d = hdulist[0].data
     naxis2, naxis1 = image2d.shape
     if debugplot in (21, 22):
@@ -412,14 +423,22 @@ def process_twilight(fitsfile, oversampling, debugplot):
         plt.pause(0.001)
         pause_debugplot(debugplot)
 
-    image2d_over_norm = image2d_over / spmedian_over
+    spmedian_over2d = \
+        np.tile(spmedian_over, naxis2).reshape(naxis2, naxis1_over)
+    image2d_over_norm = np.ones(image2d_over.shape)
+    nonzero = np.where(spmedian_over2d != 0)
+    image2d_over_norm[nonzero] = \
+        image2d_over[nonzero] / spmedian_over2d[nonzero]
     image2d_over_norm[np.isnan(image2d_over_norm)] = 1
-
-    ximshow(image2d_over_norm, debugplot=debugplot)
-
     image2d_final = rebin(image2d_over_norm, naxis2, naxis1)
 
-    ximshow(image2d_final, debugplot=debugplot)
+    if debugplot % 10 != 0:
+        ximshow(image2d_over_norm, debugplot=debugplot)
+        ximshow(image2d_final, debugplot=debugplot)
+
+    # save result
+    hdu = fits.PrimaryHDU(image2d_final, image2d_header)
+    hdu.writeto(outfile, overwrite=True)
 
 
 def main(args=None):
@@ -432,15 +451,19 @@ def main(args=None):
     parser.add_argument("oversampling",
                         help="Oversampling (1=none; default)",
                         default=1, type=int)
+    parser.add_argument("outfile",
+                        help="Output FITS file name",
+                        type=argparse.FileType('w'))
     parser.add_argument("--debugplot",
                         help="integer indicating plotting/debugging" +
-                             " (default=10)",
-                        type=int, default=12,
+                             " (default=0)",
+                        type=int, default=0,
                         choices=[0, 1, 2, 10, 11, 12, 21, 22])
 
     args = parser.parse_args(args=args)
 
-    process_twilight(args.fitsfile.name, args.oversampling, args.debugplot)
+    process_twilight(args.fitsfile.name, args.oversampling,
+                     args.outfile, args.debugplot)
 
 
 if __name__ == "__main__":
