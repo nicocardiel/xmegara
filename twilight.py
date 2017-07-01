@@ -200,7 +200,7 @@ def rebin(a, *args):
 
 
 def shiftx_image2d_flux(image2d_orig, xoffset):
-    """Resample a 2D image using a shift in the x direction.
+    """Resample 2D image using a shift in the x direction (flux is preserved).
 
     Parameters
     ----------
@@ -234,17 +234,19 @@ def shiftx_image2d_flux(image2d_orig, xoffset):
 
 def resample_image2d_flux(image2d_orig,
                           naxis1, cdelt1, crval1, crpix1, coeff):
-    """Resample a 2d image using NAXIS1, CDELT1, CRVAL1, and CRPIX1.
+    """Resample a 1D/2D image using NAXIS1, CDELT1, CRVAL1, and CRPIX1.
 
     The same NAXIS1, CDELT1, CRVAL1, and CRPIX1 are employed for all
     the scans (rows) of the original 'image2d'. The wavelength
     calibrated output image has dimensions NAXIS1 * NSCAN, where NSCAN
     is the original number of scans (rows) of the original image.
 
+    Flux is preserved.
+
     Parameters
     ----------
     image2d_orig : numpy array
-        2D image to be resampled.
+        1D or 2D image to be resampled.
     naxis1 : int
         NAXIS1 of the resampled image.
     cdelt1 : float
@@ -259,7 +261,8 @@ def resample_image2d_flux(image2d_orig,
     Returns
     -------
     image2d_resampled : numpy array
-        Wavelength calibrated 2D image
+        Wavelength calibrated 1D or 2D image.
+
     """
 
     # duplicate input array, avoiding problems when using as input
@@ -282,7 +285,6 @@ def resample_image2d_flux(image2d_orig,
 
     old_x_borders = np.arange(-0.5, nchan)
     old_x_borders += crpix1  # following FITS criterium
-    # old_wl_borders = polyval(old_x_borders, wcalib.T)
 
     new_borders = map_borders(new_wl)
 
@@ -323,13 +325,17 @@ def map_borders(wls):
     return all_borders
 
 
-def process_twilight(fitsfile, oversampling, outfile, debugplot):
+def process_twilight(fitsfile, ncycut,
+                     oversampling, outfile, debugplot):
     """Process twilight image.
 
     Parameters
     ----------
     fitsfile : str
         Twilight RSS FITS file name.
+    ncycut : tuple (integers)
+        First and last channels (pixels in the x-direction) to extract
+        median vertical cross section.
     oversampling : int
         Oversampling of each pixel.
     outfile : file
@@ -355,14 +361,44 @@ def process_twilight(fitsfile, oversampling, outfile, debugplot):
         ximshow(image2d, show=True,
                 title='initial twilight image', debugplot=debugplot)
 
+    # median (and normalised) vertical cross section in the channel region
+    # defined by the tuple ncycut
+    nc1 = ncycut[0]
+    nc2 = ncycut[1]
+    if 1 <= nc1 <= nc2 <= naxis1:
+        ycutmedian = np.median(image2d[:, nc1:(nc2+1)], axis=1)
+        # normalise with its own median
+        tmpmedian = np.median(ycutmedian)
+        if tmpmedian > 0:
+            ycutmedian /= tmpmedian
+        else:
+            raise ValueError('Unexpected null median in cross section')
+        # replace zeros by ones
+        iszero = np.where(ycutmedian == 0)
+        ycutmedian[iszero] = 1
+        if debugplot in (21, 22):
+            ximplot(ycutmedian, plot_bbox=(1, naxis2), debugplot=debugplot)
+    else:
+        raise ValueError('Unexpected ncycut values')
+
+
+    # equalise the flux in each fiber by dividing the original image by the
+    # normalised vertical cross secction
+    ycutmedian2d = np.repeat(ycutmedian, naxis1).reshape(naxis2, naxis1)
+    image2d_eq = image2d/ycutmedian2d
+    if debugplot in (21, 22):
+        ximshow(image2d, show=True,
+                title='initial twilight image', debugplot=debugplot)
+
     # median spectrum
-    spmedian = np.median(image2d, axis=0)
+    spmedian = np.median(image2d_eq, axis=0)
     if debugplot in (21, 22):
         ximplot(spmedian, title="median spectrum",
                 plot_bbox=(1, naxis1), debugplot=debugplot)
 
     # filtered and masked median spectrum
-    spmedian_filtmask = filtmask(spmedian, debugplot=debugplot)
+    spmedian_filtmask = filtmask(spmedian, fmin=0.02, fmax=0.15,
+                                 debugplot=debugplot)
 
     # periodic correlation
     xcorr = np.arange(naxis1)
@@ -429,7 +465,7 @@ def process_twilight(fitsfile, oversampling, outfile, debugplot):
     nonzero = np.where(spmedian_over2d != 0)
     image2d_over_norm[nonzero] = \
         image2d_over[nonzero] / spmedian_over2d[nonzero]
-    image2d_over_norm[np.isnan(image2d_over_norm)] = 1
+    #image2d_over_norm[np.isnan(image2d_over_norm)] = 1
     image2d_final = rebin(image2d_over_norm, naxis2, naxis1)
 
     if debugplot % 10 != 0:
@@ -454,6 +490,10 @@ def main(args=None):
     parser.add_argument("outfile",
                         help="Output FITS file name",
                         type=argparse.FileType('w'))
+    parser.add_argument("--ncycut",
+                        help="Channel region to extract cross section",
+                        default=(300, 4000),
+                        type=int, nargs=2)
     parser.add_argument("--debugplot",
                         help="integer indicating plotting/debugging" +
                              " (default=0)",
@@ -462,7 +502,7 @@ def main(args=None):
 
     args = parser.parse_args(args=args)
 
-    process_twilight(args.fitsfile.name, args.oversampling,
+    process_twilight(args.fitsfile.name, args.ncycut, args.oversampling,
                      args.outfile, args.debugplot)
 
 
