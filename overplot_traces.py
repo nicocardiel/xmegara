@@ -74,8 +74,22 @@ def main(args=None):
                              "key1,key2,...keyn.'format'")
     parser.add_argument("--geometry",
                         help="tuple x,y,dx,dy")
+    parser.add_argument("--pdffile",
+                        help="ouput PDF file name",
+                        type=argparse.FileType('w'))
 
     args = parser.parse_args(args=args)
+
+    # read pdffile
+    if args.pdffile is not None:
+        from matplotlib.backends.backend_pdf import PdfPages
+        pdf = PdfPages(args.pdffile.name)
+    else:
+        import matplotlib
+        matplotlib.use('Qt5Agg')
+        import matplotlib.pyplot as plt
+        pdf = None
+
 
     ax = ximshow_file(args.fits_file.name,
                       args_cbar_orientation='vertical',
@@ -83,6 +97,7 @@ def main(args=None):
                       args_bbox=args.bbox,
                       args_keystitle=args.keystitle,
                       args_geometry=args.geometry,
+                      pdf=pdf,
                       show=False)
 
     # trace offsets for RAW images
@@ -149,10 +164,13 @@ def main(args=None):
             with open(args.updated_traces.name, 'w') as outfile:
                 json.dump(bigdict, outfile, indent=2)
 
-    import matplotlib.pyplot as plt
-    plt.show(block=False)
-    plt.pause(0.001)
-    pause_debugplot(12)
+    if pdf is not None:
+        pdf.savefig()
+        pdf.close()
+    else:
+        plt.show(block=False)
+        plt.pause(0.001)
+        pause_debugplot(12)
 
 
 if __name__ == "__main__":
