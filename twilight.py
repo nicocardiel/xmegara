@@ -14,12 +14,57 @@ from numina.array.interpolation import SteffenInterpolator
 from numina.array.wavecalib.peaks_spectrum import refine_peaks_spectrum
 
 
-def fix_borders(image2d, nreplace, sought_value, replacement_value):
+def find_pix_borders(sp, sought_value):
+    """Find useful region of MEGARA spectrum.
+
+    Detemine the useful region of a given MEGARA spectrum by skipping
+    the initial (final) pixels with values equal to 'sought_value'.
+
+    Parameters
+    ----------
+    sp : 1D numpy array
+        MEGARA spectrum.
+    sought_value : int, float, bool
+        Pixel value that indicate missing data in the spectrum.
+
+    Returns
+    -------
+    jmin, jmax : tuple (integers)
+        Valid spectrum region (in array coordinates, from 0 to
+        NAXIS1 - 1). If all the spectra is equal to 'sought_value',
+        the returned values are jmin=-1 and jmax=naxis1.
+
+    """
+
+    if sp.ndim != 1:
+        raise ValueError('Unexpected number of dimensions:', sp.ndim)
+    naxis1 = len(sp)
+
+    jborder_min = -1
+    jborder_max = naxis1
+
+    # only spectra with values different from 'sought_value'
+    if not np.alltrue(sp == sought_value):
+        # left border
+        while True:
+            jborder_min += 1
+            if sp[jborder_min] != sought_value:
+                break
+        # right border
+        while True:
+            jborder_max -= 1
+            if sp[jborder_max] != sought_value:
+                break
+
+    return jborder_min, jborder_max
+
+
+def fix_pix_borders(image2d, nreplace, sought_value, replacement_value):
     """Replace a few pixels at the borders of each spectrum.
 
     Set to 'replacement_value' 'nreplace' pixels at the beginning (at
     the end) of each spectrum just after (before) the spectrum value
-    changes from (to) 'sought_value', as seen from the image border.
+    changes from (to) 'sought_value', as seen from the image borders.
 
     Parameters
     ----------
@@ -43,29 +88,18 @@ def fix_borders(image2d, nreplace, sought_value, replacement_value):
 
     for i in range(naxis2):
         # only spectra with values different from 'sought_value'
-        if not np.alltrue(image2d[i, :] == sought_value):
-            # left border
-            jborder = 0
-            while True:
-                if image2d[i, jborder] == sought_value:
-                    jborder += 1
-                else:
-                    break
-            if jborder > 0:
-                jborder_min = jborder
-                jborder_max = min(jborder + nreplace, naxis1)
-                image2d[i, jborder_min:jborder_max] = replacement_value
-            # right border
-            jborder = naxis1-1
-            while True:
-                if image2d[i, jborder] == sought_value:
-                    jborder -= 1
-                else:
-                    break
-            if jborder < naxis1 - 1:
-                jborder_min = max(jborder - nreplace + 1, 0)
-                jborder_max = jborder + 1
-                image2d[i, jborder_min:jborder_max] = replacement_value
+        jborder_min, jborder_max = find_pix_borders(image2d[i, :],
+                                                    sought_value=sought_value)
+        # left border
+        if jborder_min != -1:
+            j1 = jborder_min
+            j2 = min(j1 + nreplace, naxis1)
+            image2d[i, j1:j2] = replacement_value
+        # right border
+        if jborder_max != naxis1:
+            j2 = jborder_max + 1
+            j1 = max(j2 - nreplace, 0)
+            image2d[i, j1:j2] = replacement_value
 
     return image2d
 
@@ -193,7 +227,7 @@ def oversample1d(sp, crval1, cdelt1, oversampling=1, debugplot=0):
         spectrum 'sp'.
     oversampling : int
         Oversampling value per pixel.
-        debugplot : int
+    debugplot : int
         Determines whether intermediate computations and/or plots
         are displayed:
         00 : no debug, no plots
@@ -256,13 +290,13 @@ def rebin(a, *args):
 
     """
     shape = a.shape
-    lenShape = len(shape)
+    len_shape = len(shape)
     factor = np.asarray(shape) // np.asarray(args)
-    evList = ['a.reshape('] + \
-             ['args[%d],factor[%d],'%(i,i) for i in range(lenShape)] + \
-             [')'] + ['.mean(%d)'%(i+1) for i in range(lenShape)]
-    #print(''.join(evList))
-    return eval(''.join(evList))
+    ev_list = ['a.reshape('] + \
+              ['args[%d], factor[%d], ' % (i, i) for i in range(len_shape)] + \
+              [')'] + ['.mean(%d)' % (i+1) for i in range(len_shape)]
+    # print(''.join(ev_list))
+    return eval(''.join(ev_list))
 
 
 def shiftx_image2d_flux(image2d_orig, xoffset):
@@ -431,8 +465,8 @@ def process_twilight(fitsfile, npix_zero_in_border,
     # set to zero a few pixels at the beginning and at the end of each
     # spectrum to avoid unreliable values coming from the wavelength
     # calibration procedure
-    image2d = fix_borders(image2d, nreplace=npix_zero_in_border,
-                          sought_value=0, replacement_value=0)
+    image2d = fix_pix_borders(image2d, nreplace=npix_zero_in_border,
+                              sought_value=0, replacement_value=0)
     if debugplot in (21, 22):
         ximshow(image2d, show=True,
                 title='twilight image after removing ' +
@@ -553,11 +587,11 @@ def process_twilight(fitsfile, npix_zero_in_border,
     image2d_final = rebin(image2d_over_norm, naxis2, naxis1)
 
     # enlarge original mask two pixels to remove additional border effects
-    mask2d = fix_borders(mask2d, nreplace=npix_zero_in_border,
-                          sought_value=True, replacement_value=True)
+    mask2d = fix_pix_borders(mask2d, nreplace=npix_zero_in_border,
+                             sought_value=True, replacement_value=True)
     image2d_final[mask2d] = 1.0
 
-    if debugplot in (21,22):
+    if debugplot in (21, 22):
         ximshow(image2d_over_norm, title='final (oversampled)',
                 debugplot=debugplot)
         ximshow(image2d_final, title='final (resampled to original sampling)',
