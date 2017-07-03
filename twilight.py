@@ -12,6 +12,7 @@ from numina.array.display.ximshow import ximshow
 from numina.array.display.ximplotxy import ximplotxy
 from numina.array.interpolation import SteffenInterpolator
 from numina.array.wavecalib.peaks_spectrum import refine_peaks_spectrum
+from scipy import ndimage
 
 
 def find_pix_borders(sp, sought_value):
@@ -584,21 +585,47 @@ def process_twilight(fitsfile, npix_zero_in_border,
     nonzero = np.where(spmedian_over2d != 0)
     image2d_over_norm[nonzero] = \
         image2d_over[nonzero] / spmedian_over2d[nonzero]
-    image2d_final = rebin(image2d_over_norm, naxis2, naxis1)
+    image2d_divided = rebin(image2d_over_norm, naxis2, naxis1)
 
-    # enlarge original mask two pixels to remove additional border effects
+    # enlarge original mask to remove additional border effects
     mask2d = fix_pix_borders(mask2d, nreplace=npix_zero_in_border,
                              sought_value=True, replacement_value=True)
-    image2d_final[mask2d] = 1.0
+    image2d_divided[mask2d] = 1.0
+
+    # apply median filter along the spectral direction to each spectrum
+    # avoiding the masked region at the borders
+    image2d_smoothed = np.ones((naxis2, naxis1))
+    nwindow = 101
+    for i in range(naxis2):
+        jmin, jmax = find_pix_borders(mask2d[i, :], sought_value=True)
+        if jmin == -1 and jmax == naxis1:
+            image2d_smoothed[i, :] = image2d_divided[i, :]
+        else:
+            j1 = max(jmin, 0)
+            j2 = min(jmax, naxis1 - 1) + 1
+            if j2 - j1 > nwindow:
+                spdum = image2d_divided[i, j1:j2]
+                spfilt = ndimage.median_filter(spdum, nwindow, mode='nearest')
+                image2d_smoothed[i, j1:j2] = spfilt
+
+    # residuals and robust standard deviation (using a masked array)
+    image2d_residuals = np.ma.masked_array(image2d_divided - image2d_smoothed,
+                                           mask=mask2d)
+    q25, q75 = np.percentile(image2d_residuals.compressed(), q=[25.0, 75.0])
+    sigma_g = 0.7413 * (q75 - q25)  # robust standard deviation
+    print('sigma_g:', sigma_g)
 
     if debugplot in (21, 22):
-        ximshow(image2d_over_norm, title='final (oversampled)',
+        ximshow(image2d_over_norm, title='divided (oversampled)',
                 debugplot=debugplot)
-        ximshow(image2d_final, title='final (resampled to original sampling)',
+        ximshow(image2d_divided,
+                title='divided (resampled to original sampling)',
+                debugplot=debugplot)
+        ximshow(image2d_smoothed, title='median filtered',
                 debugplot=debugplot)
 
     # save result
-    hdu = fits.PrimaryHDU(image2d_final, image2d_header)
+    hdu = fits.PrimaryHDU(image2d_smoothed, image2d_header)
     hdu.writeto(outfile, overwrite=True)
 
 
