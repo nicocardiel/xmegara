@@ -14,6 +14,62 @@ from numina.array.interpolation import SteffenInterpolator
 from numina.array.wavecalib.peaks_spectrum import refine_peaks_spectrum
 
 
+def fix_borders(image2d, nreplace, sought_value, replacement_value):
+    """Replace a few pixels at the borders of each spectrum.
+
+    Set to 'replacement_value' 'nreplace' pixels at the beginning (at
+    the end) of each spectrum just after (before) the spectrum value
+    changes from (to) 'sought_value', as seen from the image border.
+
+    Parameters
+    ----------
+    image2d : numpy array
+        Initial 2D image.
+    nreplace : int
+        Number of pixels to be replaced in each border.
+    sought_value : int, float, bool
+        Pixel value that indicate missing data in the spectrum.
+    replacement_value : int, float, bool
+        Pixel value to be employed in the 'nreplace' pixels.
+
+    Returns
+    -------
+    image2d : numpy array
+        Final 2D image.
+
+    """
+
+    naxis2, naxis1 = image2d.shape
+
+    for i in range(naxis2):
+        # only spectra with values different from 'sought_value'
+        if not np.alltrue(image2d[i, :] == sought_value):
+            # left border
+            jborder = 0
+            while True:
+                if image2d[i, jborder] == sought_value:
+                    jborder += 1
+                else:
+                    break
+            if jborder > 0:
+                jborder_min = jborder
+                jborder_max = min(jborder + nreplace, naxis1)
+                image2d[i, jborder_min:jborder_max] = replacement_value
+            # right border
+            jborder = naxis1-1
+            while True:
+                if image2d[i, jborder] == sought_value:
+                    jborder -= 1
+                else:
+                    break
+            if jborder < naxis1 - 1:
+                jborder_min = max(jborder - nreplace + 1, 0)
+                jborder_max = jborder + 1
+                image2d[i, jborder_min:jborder_max] = replacement_value
+
+    return image2d
+
+
 def filtmask(sp, fmin=0.02, fmax=0.15, debugplot=0):
     """Filter spectrum in Fourier space and apply cosine bell.
 
@@ -122,7 +178,7 @@ def cosinebell(n, fraction):
     return mask
 
 
-def oversample1d(sp, crval1, cdelt1, oversampling=1):
+def oversample1d(sp, crval1, cdelt1, oversampling=1, debugplot=0):
     """Oversample spectrum.
 
     Parameters
@@ -137,6 +193,15 @@ def oversample1d(sp, crval1, cdelt1, oversampling=1):
         spectrum 'sp'.
     oversampling : int
         Oversampling value per pixel.
+        debugplot : int
+        Determines whether intermediate computations and/or plots
+        are displayed:
+        00 : no debug, no plots
+        01 : no debug, plots without pauses
+        02 : no debug, plots with pauses
+        10 : debug, no plots
+        11 : debug, plots without pauses
+        12 : debug, plots with pauses
 
     Returns
     -------
@@ -166,15 +231,16 @@ def oversample1d(sp, crval1, cdelt1, oversampling=1):
         i2 = i1 + oversampling
         sp_over[i1:i2] = sp[i]
 
-    # crvaln = crval1 + (naxis1 - 1) * cdelt1
-    # crvaln_over = crval1_over + (naxis1_over - 1) * cdelt1_over
-    # xover = np.linspace(crval1_over, crvaln_over, naxis1_over)
-    # import matplotlib.pyplot as plt
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111)
-    # ax.plot(np.linspace(crval1, crvaln, naxis1), sp, 'bo')
-    # ax.plot(xover, sp_over, 'r+')
-    # plt.show()
+    if debugplot in (21, 22):
+        crvaln = crval1 + (naxis1 - 1) * cdelt1
+        crvaln_over = crval1_over + (naxis1_over - 1) * cdelt1_over
+        xover = np.linspace(crval1_over, crvaln_over, naxis1_over)
+        ax = ximplotxy(np.linspace(crval1, crvaln, naxis1), sp, 'bo',
+                       label='original', show=False)
+        ax.plot(xover, sp_over, 'r+', label='resampled')
+        plt.show(block=False)
+        plt.pause(0.001)
+        pause_debugplot(debugplot)
 
     return sp_over, crval1_over, cdelt1_over
 
@@ -325,7 +391,7 @@ def map_borders(wls):
     return all_borders
 
 
-def process_twilight(fitsfile, ncycut,
+def process_twilight(fitsfile, npix_zero_in_border,
                      oversampling, outfile, debugplot):
     """Process twilight image.
 
@@ -333,9 +399,10 @@ def process_twilight(fitsfile, ncycut,
     ----------
     fitsfile : str
         Twilight RSS FITS file name.
-    ncycut : tuple (integers)
-        First and last channels (pixels in the x-direction) to extract
-        median vertical cross section.
+    npix_zero_in_border : int
+        Number of pixels to be set to zero at the beginning and at
+        the end of each spectrum to avoid unreliable pixel values
+        produced in the wavelength calibration procedure.
     oversampling : int
         Oversampling of each pixel.
     outfile : file
@@ -361,44 +428,58 @@ def process_twilight(fitsfile, ncycut,
         ximshow(image2d, show=True,
                 title='initial twilight image', debugplot=debugplot)
 
-    # median (and normalised) vertical cross section in the channel region
-    # defined by the tuple ncycut
-    nc1 = ncycut[0]
-    nc2 = ncycut[1]
-    if 1 <= nc1 <= nc2 <= naxis1:
-        ycutmedian = np.median(image2d[:, nc1:(nc2+1)], axis=1)
-        # normalise with its own median
-        tmpmedian = np.median(ycutmedian)
-        if tmpmedian > 0:
-            ycutmedian /= tmpmedian
-        else:
-            raise ValueError('Unexpected null median in cross section')
-        # replace zeros by ones
-        iszero = np.where(ycutmedian == 0)
-        ycutmedian[iszero] = 1
-        if debugplot in (21, 22):
-            ximplot(ycutmedian, plot_bbox=(1, naxis2), debugplot=debugplot)
-    else:
-        raise ValueError('Unexpected ncycut values')
+    # set to zero a few pixels at the beginning and at the end of each
+    # spectrum to avoid unreliable values coming from the wavelength
+    # calibration procedure
+    image2d = fix_borders(image2d, nreplace=npix_zero_in_border,
+                          sought_value=0, replacement_value=0)
+    if debugplot in (21, 22):
+        ximshow(image2d, show=True,
+                title='twilight image after removing ' +
+                      str(npix_zero_in_border) + ' pixels at the borders',
+                debugplot=debugplot)
 
+    # mask and masked array
+    mask2d = (image2d == 0)
+    image2d_masked = np.ma.masked_array(image2d, mask=mask2d)
+
+    # median (and normalised) vertical cross section
+    ycutmedian = np.ma.median(image2d_masked, axis=1).data
+    # normalise cross section with its own median
+    tmpmedian = np.median(ycutmedian)
+    if tmpmedian > 0:
+        ycutmedian /= tmpmedian
+    else:
+        raise ValueError('Unexpected null median in cross section')
+    # replace zeros by ones
+    iszero = np.where(ycutmedian == 0)
+    ycutmedian[iszero] = 1
+    if debugplot in (21, 22):
+        ximplot(ycutmedian, plot_bbox=(1, naxis2),
+                title='median ycut', debugplot=debugplot)
 
     # equalise the flux in each fiber by dividing the original image by the
     # normalised vertical cross secction
     ycutmedian2d = np.repeat(ycutmedian, naxis1).reshape(naxis2, naxis1)
-    image2d_eq = image2d/ycutmedian2d
+    image2d_eq = image2d_masked/ycutmedian2d
     if debugplot in (21, 22):
-        ximshow(image2d, show=True,
-                title='initial twilight image', debugplot=debugplot)
+        ximshow(image2d_eq.data, show=True,
+                title='equalised image', debugplot=debugplot)
 
     # median spectrum
-    spmedian = np.median(image2d_eq, axis=0)
-    if debugplot in (21, 22):
-        ximplot(spmedian, title="median spectrum",
-                plot_bbox=(1, naxis1), debugplot=debugplot)
-
+    spmedian = np.ma.median(image2d_eq, axis=0).data
     # filtered and masked median spectrum
     spmedian_filtmask = filtmask(spmedian, fmin=0.02, fmax=0.15,
                                  debugplot=debugplot)
+    if debugplot in (21, 22):
+        xdum = np.arange(naxis1) + 1
+        ax = ximplotxy(xdum, spmedian, show=False,
+                       title="median spectrum", label='initial')
+        ax.plot(xdum, spmedian_filtmask, label='filtered & masked')
+        ax.legend()
+        plt.show(block=False)
+        plt.pause(0.001)
+        pause_debugplot(debugplot)
 
     # periodic correlation
     xcorr = np.arange(naxis1)
@@ -444,11 +525,15 @@ def process_twilight(fitsfile, ncycut,
         image2d_over[i] = sp_over_shifted
 
     if debugplot in (21, 22):
-        ximshow(image2d_over, debugplot=debugplot)
+        ximshow(image2d_over, title='oversampled & shifted',
+                debugplot=debugplot)
 
-    spmedian_over = np.median(image2d_over, axis=0)
+    # medium spectrum (masking null values)
+    image2d_over_masked = np.ma.masked_array(image2d_over,
+                                             mask=(image2d_over == 0))
+    spmedian_over = np.ma.median(image2d_over_masked, axis=0).data
 
-    if debugplot % 10 != 0:
+    if debugplot in (21, 22):
         xplot = np.linspace(1, naxis1, naxis1)
         xplot_over = np.linspace(1, naxis1, naxis1_over)
         ax = ximplotxy(xplot, spmedian,
@@ -465,12 +550,18 @@ def process_twilight(fitsfile, ncycut,
     nonzero = np.where(spmedian_over2d != 0)
     image2d_over_norm[nonzero] = \
         image2d_over[nonzero] / spmedian_over2d[nonzero]
-    #image2d_over_norm[np.isnan(image2d_over_norm)] = 1
     image2d_final = rebin(image2d_over_norm, naxis2, naxis1)
 
-    if debugplot % 10 != 0:
-        ximshow(image2d_over_norm, debugplot=debugplot)
-        ximshow(image2d_final, debugplot=debugplot)
+    # enlarge original mask two pixels to remove additional border effects
+    mask2d = fix_borders(mask2d, nreplace=npix_zero_in_border,
+                          sought_value=True, replacement_value=True)
+    image2d_final[mask2d] = 1.0
+
+    if debugplot in (21,22):
+        ximshow(image2d_over_norm, title='final (oversampled)',
+                debugplot=debugplot)
+        ximshow(image2d_final, title='final (resampled to original sampling)',
+                debugplot=debugplot)
 
     # save result
     hdu = fits.PrimaryHDU(image2d_final, image2d_header)
@@ -490,10 +581,10 @@ def main(args=None):
     parser.add_argument("outfile",
                         help="Output FITS file name",
                         type=argparse.FileType('w'))
-    parser.add_argument("--ncycut",
-                        help="Channel region to extract cross section",
-                        default=(300, 4000),
-                        type=int, nargs=2)
+    parser.add_argument("--npixzero",
+                        help="Number of pixels to be set to zero at the "
+                             "borders of each spectrum",
+                        default=3, type=int)
     parser.add_argument("--debugplot",
                         help="integer indicating plotting/debugging" +
                              " (default=0)",
@@ -502,7 +593,9 @@ def main(args=None):
 
     args = parser.parse_args(args=args)
 
-    process_twilight(args.fitsfile.name, args.ncycut, args.oversampling,
+    process_twilight(args.fitsfile.name,
+                     args.npixzero,
+                     args.oversampling,
                      args.outfile, args.debugplot)
 
 
