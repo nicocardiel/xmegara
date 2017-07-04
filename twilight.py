@@ -273,9 +273,7 @@ def oversample1d(sp, crval1, cdelt1, oversampling=1, debugplot=0):
         ax = ximplotxy(np.linspace(crval1, crvaln, naxis1), sp, 'bo',
                        label='original', show=False)
         ax.plot(xover, sp_over, 'r+', label='resampled')
-        plt.show(block=False)
-        plt.pause(0.001)
-        pause_debugplot(debugplot)
+        pause_debugplot(debugplot, pltshow=True)
 
     return sp_over, crval1_over, cdelt1_over
 
@@ -427,7 +425,7 @@ def map_borders(wls):
 
 
 def process_twilight(fitsfile, npix_zero_in_border,
-                     oversampling, outfile, debugplot):
+                     oversampling, nwindow_median, outfile, debugplot):
     """Process twilight image.
 
     Parameters
@@ -440,6 +438,9 @@ def process_twilight(fitsfile, npix_zero_in_border,
         produced in the wavelength calibration procedure.
     oversampling : int
         Oversampling of each pixel.
+    nwindow_median : int
+        Window size (in pixels) for median filter applied along the
+        spectral direction.
     outfile : file
         Output FITS file name.
     debugplot : int
@@ -512,9 +513,7 @@ def process_twilight(fitsfile, npix_zero_in_border,
                        title="median spectrum", label='initial')
         ax.plot(xdum, spmedian_filtmask, label='filtered & masked')
         ax.legend()
-        plt.show(block=False)
-        plt.pause(0.001)
-        pause_debugplot(debugplot)
+        pause_debugplot(debugplot, pltshow=True)
 
     # periodic correlation
     xcorr = np.arange(naxis1)
@@ -575,9 +574,7 @@ def process_twilight(fitsfile, npix_zero_in_border,
                        show=False, label='median')
         ax.plot(xplot_over, spmedian_over, 'b-', label='oversampled median')
         ax.legend()
-        plt.show(block=False)
-        plt.pause(0.001)
-        pause_debugplot(debugplot)
+        pause_debugplot(debugplot, pltshow=True)
 
     spmedian_over2d = \
         np.tile(spmedian_over, naxis2).reshape(naxis2, naxis1_over)
@@ -595,7 +592,6 @@ def process_twilight(fitsfile, npix_zero_in_border,
     # apply median filter along the spectral direction to each spectrum
     # avoiding the masked region at the borders
     image2d_smoothed = np.ones((naxis2, naxis1))
-    nwindow = 101
     for i in range(naxis2):
         jmin, jmax = find_pix_borders(mask2d[i, :], sought_value=True)
         if jmin == -1 and jmax == naxis1:
@@ -603,17 +599,47 @@ def process_twilight(fitsfile, npix_zero_in_border,
         else:
             j1 = max(jmin, 0)
             j2 = min(jmax, naxis1 - 1) + 1
-            if j2 - j1 > nwindow:
-                spdum = image2d_divided[i, j1:j2]
-                spfilt = ndimage.median_filter(spdum, nwindow, mode='nearest')
+            spdum = np.copy(image2d_divided[i, j1:j2])
+            if j2 - j1 > nwindow_median:
+                spfilt = ndimage.median_filter(spdum, nwindow_median,
+                                               mode='nearest')
                 image2d_smoothed[i, j1:j2] = spfilt
+            else:
+                image2d_smoothed[i, j1:j2] = spdum
 
     # residuals and robust standard deviation (using a masked array)
     image2d_residuals = np.ma.masked_array(image2d_divided - image2d_smoothed,
                                            mask=mask2d)
     q25, q75 = np.percentile(image2d_residuals.compressed(), q=[25.0, 75.0])
     sigma_g = 0.7413 * (q75 - q25)  # robust standard deviation
-    print('sigma_g:', sigma_g)
+
+    # repeat median filter along the spectral direction to each spectrum
+    # replacing suspicious pixels (residuals > 3*sigma_g) by a highly
+    # smoothed version of the spectrum
+    image2d_smoothed = np.ones((naxis2, naxis1))
+    tsigma = 3.0
+    ntmedian = 5
+    for i in range(naxis2):
+        jmin, jmax = find_pix_borders(mask2d[i, :], sought_value=True)
+        if jmin == -1 and jmax == naxis1:
+            image2d_smoothed[i, :] = image2d_divided[i, :]
+        else:
+            j1 = max(jmin, 0)
+            j2 = min(jmax, naxis1 - 1) + 1
+            spdum = np.copy(image2d_divided[i, j1:j2])
+            if j2 - j1 > ntmedian*nwindow_median:
+                spultrasmooth = ndimage.median_filter(spdum,
+                                                      ntmedian*nwindow_median,
+                                                      mode='nearest')
+                spresiduals = image2d_residuals[i, j1:j2]
+                pixreplace = np.where(np.abs(spresiduals) > tsigma*sigma_g)
+                spdum[pixreplace] = spultrasmooth[pixreplace]
+                spfilt = ndimage.median_filter(spdum, nwindow_median,
+                                               mode='nearest')
+                image2d_smoothed[i, j1:j2] = spfilt
+
+            else:
+                image2d_smoothed[i, j1:j2] = spdum
 
     if debugplot in (21, 22):
         ximshow(image2d_over_norm, title='divided (oversampled)',
@@ -621,7 +647,7 @@ def process_twilight(fitsfile, npix_zero_in_border,
         ximshow(image2d_divided,
                 title='divided (resampled to original sampling)',
                 debugplot=debugplot)
-        ximshow(image2d_smoothed, title='median filtered',
+        ximshow(image2d_smoothed, title='median filtered (twice)',
                 debugplot=debugplot)
 
     # save result
@@ -636,16 +662,21 @@ def main(args=None):
     parser.add_argument("fitsfile",
                         help="Twilight FITS image",
                         type=argparse.FileType('r'))
-    parser.add_argument("oversampling",
-                        help="Oversampling (1=none; default)",
-                        default=1, type=int)
     parser.add_argument("outfile",
                         help="Output FITS file name",
                         type=argparse.FileType('w'))
+    parser.add_argument("--oversampling",
+                        help="Oversampling (1=none; default)",
+                        default=1, type=int)
     parser.add_argument("--npixzero",
                         help="Number of pixels to be set to zero at the "
-                             "borders of each spectrum",
+                             "borders of each spectrum (default=3)",
                         default=3, type=int)
+    parser.add_argument("--nwinmed",
+                        help="Window size (pixels) for median filter along "
+                             "the spectral direction (odd number, "
+                             "default=51)",
+                        default=51, type=int)
     parser.add_argument("--debugplot",
                         help="integer indicating plotting/debugging" +
                              " (default=0)",
@@ -657,6 +688,7 @@ def main(args=None):
     process_twilight(args.fitsfile.name,
                      args.npixzero,
                      args.oversampling,
+                     args.nwinmed,
                      args.outfile, args.debugplot)
 
 
