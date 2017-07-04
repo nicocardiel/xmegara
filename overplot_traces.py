@@ -168,9 +168,7 @@ def main(args=None):
         pdf.savefig()
         pdf.close()
     else:
-        plt.show(block=False)
-        plt.pause(0.001)
-        pause_debugplot(12)
+        pause_debugplot(12, pltshow=True)
 
 
 if __name__ == "__main__":

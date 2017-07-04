@@ -123,9 +123,7 @@ def find_boxes(fitsfile, channels, nsearch, debugplot):
                        label='original', linestyle='dotted')
         ax.plot(xf, yf_trimmed.real, label='trimmed')
         ax.legend()
-        plt.show(block=False)
-        plt.pause(0.001)
-        pause_debugplot(debugplot)
+        pause_debugplot(debugplot, pltshow=True)
 
     refined_boxes = np.zeros(previous_boxes.size, dtype=int)
     for ibox, box in enumerate(previous_boxes):
@@ -148,10 +146,7 @@ def find_boxes(fitsfile, channels, nsearch, debugplot):
                        xlabel='y axis', ylabel='reversed scale')
         ax.vlines(previous_boxes, ymin=1.1, ymax=1.3, colors='magenta')
         ax.vlines(refined_boxes, ymin=1.4, ymax=1.6, colors='green')
-
-        plt.show(block=False)
-        plt.pause(0.001)
-        pause_debugplot(debugplot)
+        pause_debugplot(debugplot, pltshow=True)
 
 
 def get_previous_boxes(vph, insmode, insconf):
