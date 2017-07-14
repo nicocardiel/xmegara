@@ -84,7 +84,7 @@ def traces2ds9(json_file, ds9_file, rawimage, numpix=100, fibid_at=0):
 
 def main(args=None):
     # parse command-line options
-    parser = argparse.ArgumentParser(prog='overplot_traces')
+    parser = argparse.ArgumentParser(prog='traces2ds9')
     # positional parameters
     parser.add_argument("json_file",
                         help="JSON file with fiber traces",
