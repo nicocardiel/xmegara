@@ -7,6 +7,7 @@ import numpy as np
 from numpy.polynomial import Polynomial
 from uuid import uuid4
 
+from numina.array.display.polfit_residuals import polfit_residuals
 from numina.array.display.ximshow import ximshow_file
 from numina.array.display.pause_debugplot import pause_debugplot
 
@@ -129,6 +130,7 @@ def main(args=None):
     # if present, read healing JSON file
     if args.healing is not None:
         healdict = json.loads(open(args.healing.name).read())
+
         if 'badfibers' in healdict.keys():
             for badfiberdict in healdict['badfibers']:
                 fibid = badfiberdict['fibid']
@@ -154,6 +156,7 @@ def main(args=None):
                 else:
                     raise ValueError("Unexpected healing method:",
                                      badfiberdict['method'])
+
         if 'extrapolations_single' in healdict.keys():
             for extrapoldict in healdict['extrapolations_single']:
                 fibid = extrapoldict['fibid']
@@ -172,6 +175,40 @@ def main(args=None):
                 if xmax_orig < xmax:
                     plot_trace(ax, coeff, xmax_orig, xmax, ix_offset,
                                args.rawimage, False, fibid, colour='green')
+
+        if 'extrapolation_single_fixed_points' in healdict.keys():
+            for extrapoldict in healdict['extrapolation_single_fixed_points']:
+                fibid = extrapoldict['fibid']
+                print("(extrapolation+fixed): ", fibid)
+                start_reuse = extrapoldict['start_reuse']
+                stop_reuse = extrapoldict['stop_reuse']
+                resampling = extrapoldict['resampling']
+                poldeg = extrapoldict['poldeg']
+                start = extrapoldict['start']
+                stop = extrapoldict['stop']
+                coeff = bigdict['contents'][fibid - 1]['fitparms']
+                xfit = np.linspace(start_reuse, stop_reuse, num=resampling)
+                poly = np.polynomial.Polynomial(coeff)
+                yfit = poly(xfit)
+                for fixedpoint in extrapoldict['fixed_points']:
+                    # assume x, y coordinates in JSON file are given in image coordinates,
+                    # starting at (1,1) in the lower left corner
+                    xdum = fixedpoint['x'] - 1  # use np.array coordinates
+                    ydum = fixedpoint['y'] - 1  # use np.array coordinates
+                    xfit = np.concatenate((xfit, np.array([xdum])))
+                    yfit = np.concatenate((yfit, np.array([ydum])))
+                poly, residum = polfit_residuals(xfit, yfit, poldeg)
+                coeff = poly.coef
+                if start < start_reuse:
+                    plot_trace(ax, coeff, start, start_reuse, ix_offset,
+                               args.rawimage, args.fibids, fibid, colour='green')
+                if stop_reuse < stop:
+                    plot_trace(ax, coeff, stop_reuse, stop, ix_offset,
+                               args.rawimage, args.fibids, fibid, colour='green')
+                bigdict['contents'][fibid - 1]['start'] = extrapoldict['start']
+                bigdict['contents'][fibid - 1]['stop'] = extrapoldict['stop']
+                bigdict['contents'][fibid - 1]['fitparms'] = coeff.tolist()
+
         if 'extrapolations_many' in healdict.keys():
             for extrapoldict in healdict['extrapolations_many']:
                 fibid_ini = extrapoldict['fibid_ini']

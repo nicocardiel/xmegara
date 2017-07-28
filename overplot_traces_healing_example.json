@@ -44,6 +44,27 @@
       "stop": 4092
     }
   ],
+  "extrapolation_single_fixed_points": [
+    {
+      "fibid": 614,
+      "start_reuse" : 4,
+      "stop_reuse" : 1500,
+      "resampling" : 10,
+      "poldeg" : 5,
+      "start" : 4,
+      "stop" : 4092,
+      "fixed_points" : [
+        {
+          "x" : 2800,
+          "y" : 3864
+        },
+        {
+          "x" : 3900,
+          "y" : 3865
+        }
+      ]
+    }
+  ],
   "extrapolations_many": [
     {
       "fibid_ini": 1,
