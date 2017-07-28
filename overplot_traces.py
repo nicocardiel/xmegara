@@ -5,6 +5,7 @@ import argparse
 import json
 import numpy as np
 from numpy.polynomial import Polynomial
+import pkgutil
 from uuid import uuid4
 
 from numina.array.display.polfit_residuals import polfit_residuals
@@ -13,7 +14,7 @@ from numina.array.display.pause_debugplot import pause_debugplot
 
 
 def plot_trace(ax, coeff, xmin, xmax, ix_offset,
-               rawimage, fibids, fibid, colour):
+               rawimage, insmode, fibids, fibid, colour):
     if xmin == xmax == 0:
         num = 4096
         xp = np.linspace(start=1, stop=4096, num=num)
@@ -31,6 +32,7 @@ def plot_trace(ax, coeff, xmin, xmax, ix_offset,
             xmidpoint = 2048
         else:
             xmidpoint = (xmin+xmax)/2
+        #
         ax.text(xmidpoint, yp[int(num / 2)], str(fibid), fontsize=6,
                 bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="grey", ),
                 color=colour, fontweight='bold', backgroundcolor='white')
@@ -109,6 +111,10 @@ def main(args=None):
 
     # read and display traces from JSON file
     bigdict = json.loads(open(args.traces_file.name).read())
+    insmode = bigdict['tags']['insmode']
+    global_offset = bigdict['global_offset']
+    pol_global_offset = np.polynomial.Polynomial(global_offset)
+    ref_column = bigdict['ref_column']
     for fiberdict in bigdict['contents']:
         fibid = fiberdict['fibid']
         xmin = fiberdict['start']
@@ -116,14 +122,17 @@ def main(args=None):
         coeff = np.array(fiberdict['fitparms'])
         # skip fibers without trace
         if len(coeff) > 0:
-            coeff[0] += args.yoffset
+            pol_trace = np.polynomial.Polynomial(coeff)
+            y_at_ref_column = pol_trace(ref_column)
+            correction = pol_global_offset(y_at_ref_column)
+            coeff[0] += correction + args.yoffset
             # update values in bigdict (JSON structure)
             bigdict['contents'][fibid-1]['fitparms'] = coeff.tolist()
             if args.extrapolate:
-                plot_trace(ax, coeff, 0, 0, ix_offset,
-                           args.rawimage, False, fibid, colour='grey')
-            plot_trace(ax, coeff, xmin, xmax, ix_offset,
-                       args.rawimage, args.fibids, fibid, colour='blue')
+                plot_trace(ax, coeff, 0, 0, ix_offset, args.rawimage,
+                           insmode, False, fibid, colour='grey')
+            plot_trace(ax, coeff, xmin, xmax, ix_offset, args.rawimage,
+                       insmode, args.fibids, fibid, colour='blue')
         else:
             print('Warning ---> Missing fiber:', fibid)
 
@@ -148,7 +157,8 @@ def main(args=None):
                     xmax = np.min([tmpf1['stop'], tmpf2['stop']])
                     coeff = coefff1 + fraction * (coefff2 - coefff1)
                     plot_trace(ax, coeff, xmin, xmax, ix_offset,
-                               args.rawimage, args.fibids, fibid, colour='green')
+                               args.rawimage, insmode, args.fibids, fibid,
+                               colour='green')
                     # update values in bigdict (JSON structure)
                     bigdict['contents'][fibid - 1]['start'] = xmin
                     bigdict['contents'][fibid - 1]['stop'] = xmax
@@ -173,10 +183,12 @@ def main(args=None):
                 coeff = np.array(bigdict['contents'][fibid - 1]['fitparms'])
                 if xmin < xmin_orig:
                     plot_trace(ax, coeff, xmin, xmin_orig, ix_offset,
-                               args.rawimage, False, fibid, colour='green')
+                               args.rawimage, insmode, False, fibid,
+                               colour='green')
                 if xmax_orig < xmax:
                     plot_trace(ax, coeff, xmax_orig, xmax, ix_offset,
-                               args.rawimage, False, fibid, colour='green')
+                               args.rawimage, insmode, False, fibid,
+                               colour='green')
 
         if 'extrapolation_single_fixed_points' in healdict.keys():
             for extrapoldict in healdict['extrapolation_single_fixed_points']:
@@ -203,10 +215,12 @@ def main(args=None):
                 coeff = poly.coef
                 if start < start_reuse:
                     plot_trace(ax, coeff, start, start_reuse, ix_offset,
-                               args.rawimage, args.fibids, fibid, colour='green')
+                               args.rawimage, insmode, args.fibids, fibid,
+                               colour='green')
                 if stop_reuse < stop:
                     plot_trace(ax, coeff, stop_reuse, stop, ix_offset,
-                               args.rawimage, args.fibids, fibid, colour='green')
+                               args.rawimage, insmode, args.fibids, fibid,
+                               colour='green')
                 bigdict['contents'][fibid - 1]['start'] = extrapoldict['start']
                 bigdict['contents'][fibid - 1]['stop'] = extrapoldict['stop']
                 bigdict['contents'][fibid - 1]['fitparms'] = coeff.tolist()
@@ -227,10 +241,12 @@ def main(args=None):
                     coeff = np.array(bigdict['contents'][fibid - 1]['fitparms'])
                     if xmin < xmin_orig:
                         plot_trace(ax, coeff, xmin, xmin_orig, ix_offset,
-                                   args.rawimage, False, fibid, colour='green')
+                                   args.rawimage, insmode, False, fibid,
+                                   colour='green')
                     if xmax_orig < xmax:
                         plot_trace(ax, coeff, xmax_orig, xmax, ix_offset,
-                                   args.rawimage, False, fibid, colour='green')
+                                   args.rawimage, insmode, False, fibid,
+                                   colour='green')
 
     # update trace map
     if args.updated_traces is not None:
