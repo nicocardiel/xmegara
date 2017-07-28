@@ -153,6 +153,8 @@ def main(args=None):
                     bigdict['contents'][fibid - 1]['start'] = xmin
                     bigdict['contents'][fibid - 1]['stop'] = xmax
                     bigdict['contents'][fibid - 1]['fitparms'] = coeff.tolist()
+                    if fibid in bigdict['error_fitting']:
+                        bigdict['error_fitting'].remove(fibid)
                 else:
                     raise ValueError("Unexpected healing method:",
                                      badfiberdict['method'])
