@@ -129,31 +129,69 @@ def main(args=None):
     # if present, read healing JSON file
     if args.healing is not None:
         healdict = json.loads(open(args.healing.name).read())
-        for badfiberdict in healdict['badfibers']:
-            fibid = badfiberdict['fibid']
-            print("(healing) fibid: ", fibid)
-            if badfiberdict['method'] == 'interpolation2':
-                fraction = badfiberdict['fraction']
-                nf1, nf2 = badfiberdict['neighbours']
-                tmpf1 = bigdict['contents'][nf1-1]
-                tmpf2 = bigdict['contents'][nf2-1]
-                if nf1 != tmpf1['fibid'] or nf2 != tmpf2['fibid']:
-                    raise ValueError("Unexpected fiber numbers in neighbours")
-                coefff1 = np.array(tmpf1['fitparms'])
-                coefff2 = np.array(tmpf2['fitparms'])
-                xmin = np.min([tmpf1['start'], tmpf2['start']])
-                xmax = np.min([tmpf1['stop'], tmpf2['stop']])
-                coeff = coefff1 + fraction * (coefff2 - coefff1)
-                plot_trace(ax, coeff, xmin, xmax, ix_offset,
-                           args.rawimage, args.fibids, fibid, colour='green')
+        if 'badfibers' in healdict.keys():
+            for badfiberdict in healdict['badfibers']:
+                fibid = badfiberdict['fibid']
+                print("(healing) fibid: ", fibid)
+                if badfiberdict['method'] == 'interpolation2':
+                    fraction = badfiberdict['fraction']
+                    nf1, nf2 = badfiberdict['neighbours']
+                    tmpf1 = bigdict['contents'][nf1-1]
+                    tmpf2 = bigdict['contents'][nf2-1]
+                    if nf1 != tmpf1['fibid'] or nf2 != tmpf2['fibid']:
+                        raise ValueError("Unexpected fiber numbers in neighbours")
+                    coefff1 = np.array(tmpf1['fitparms'])
+                    coefff2 = np.array(tmpf2['fitparms'])
+                    xmin = np.min([tmpf1['start'], tmpf2['start']])
+                    xmax = np.min([tmpf1['stop'], tmpf2['stop']])
+                    coeff = coefff1 + fraction * (coefff2 - coefff1)
+                    plot_trace(ax, coeff, xmin, xmax, ix_offset,
+                               args.rawimage, args.fibids, fibid, colour='green')
+                    # update values in bigdict (JSON structure)
+                    bigdict['contents'][fibid - 1]['start'] = xmin
+                    bigdict['contents'][fibid - 1]['stop'] = xmax
+                    bigdict['contents'][fibid - 1]['fitparms'] = coeff.tolist()
+                else:
+                    raise ValueError("Unexpected healing method:",
+                                     badfiberdict['method'])
+        if 'extrapolations_single' in healdict.keys():
+            for extrapoldict in healdict['extrapolations_single']:
+                fibid = extrapoldict['fibid']
+                print("(extrapolating) fibid: ", fibid)
                 # update values in bigdict (JSON structure)
+                xmin = extrapoldict['start']
+                xmax = extrapoldict['stop']
+                xmin_orig = bigdict['contents'][fibid - 1]['start']
+                xmax_orig = bigdict['contents'][fibid - 1]['stop']
                 bigdict['contents'][fibid - 1]['start'] = xmin
                 bigdict['contents'][fibid - 1]['stop'] = xmax
-                bigdict['contents'][fibid - 1]['fitparms'] = coeff.tolist()
-
-            else:
-                raise ValueError("Unexpected healing method:",
-                                 badfiberdict['method'])
+                coeff = np.array(bigdict['contents'][fibid - 1]['fitparms'])
+                if xmin < xmin_orig:
+                    plot_trace(ax, coeff, xmin, xmin_orig, ix_offset,
+                               args.rawimage, False, fibid, colour='green')
+                if xmax_orig < xmax:
+                    plot_trace(ax, coeff, xmax_orig, xmax, ix_offset,
+                               args.rawimage, False, fibid, colour='green')
+        if 'extrapolations_many' in healdict.keys():
+            for extrapoldict in healdict['extrapolations_many']:
+                fibid_ini = extrapoldict['fibid_ini']
+                fibid_end = extrapoldict['fibid_end']
+                for fibid in range(fibid_ini, fibid_end + 1):
+                    print("(extrapolating) fibid: ", fibid)
+                    # update values in bigdict (JSON structure)
+                    xmin = extrapoldict['start']
+                    xmax = extrapoldict['stop']
+                    xmin_orig = bigdict['contents'][fibid - 1]['start']
+                    xmax_orig = bigdict['contents'][fibid - 1]['stop']
+                    bigdict['contents'][fibid - 1]['start'] = xmin
+                    bigdict['contents'][fibid - 1]['stop'] = xmax
+                    coeff = np.array(bigdict['contents'][fibid - 1]['fitparms'])
+                    if xmin < xmin_orig:
+                        plot_trace(ax, coeff, xmin, xmin_orig, ix_offset,
+                                   args.rawimage, False, fibid, colour='green')
+                    if xmax_orig < xmax:
+                        plot_trace(ax, coeff, xmax_orig, xmax, ix_offset,
+                                   args.rawimage, False, fibid, colour='green')
 
     # update trace map
     if args.updated_traces is not None:

@@ -36,5 +36,20 @@
         615
       ]
     }
+  ],
+  "extrapolations_single": [
+    {
+      "fibid": 1,
+      "start": 4,
+      "stop": 4092
+    }
+  ],
+  "extrapolations_many": [
+    {
+      "fibid_ini": 1,
+      "fibid_end": 622,
+      "start": 4,
+      "stop": 4092
+    }
   ]
 }
