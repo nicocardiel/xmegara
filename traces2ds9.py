@@ -46,7 +46,7 @@ def traces2ds9(json_file, ds9_file, rawimage, numpix=100, fibid_at=0,
     ds9_file.write('physical\n')
 
     # read traces from JSON file and save region in ds9 file
-    colorbox = ['#ff77ff','#4444ff']
+    colorbox = ['#ff77ff', '#4444ff']
     bigdict = json.loads(open(json_file).read())
     insmode = bigdict['tags']['insmode']
     ds9_file.write('#\n# insmode: {0}\n'.format(insmode))

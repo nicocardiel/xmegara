@@ -7,12 +7,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numpy.polynomial.polynomial import polyval
 from numina.array.display.pause_debugplot import pause_debugplot
+from numina.array.display.polfit_residuals import \
+    polfit_residuals_with_sigma_rejection
 from numina.array.display.ximplot import ximplot
 from numina.array.display.ximshow import ximshow
 from numina.array.display.ximplotxy import ximplotxy
 from numina.array.interpolation import SteffenInterpolator
 from numina.array.wavecalib.peaks_spectrum import refine_peaks_spectrum
 from scipy import ndimage
+
+from numina.array.display.pause_debugplot import DEBUGPLOT_CODES
 
 
 def find_pix_borders(sp, sought_value):
@@ -117,15 +121,8 @@ def filtmask(sp, fmin=0.02, fmax=0.15, debugplot=0):
     fmax : float
         Maximum frequency to be employed.
     debugplot : int
-        Determines whether intermediate computations and/or plots
-        are displayed:
-        00 : no debug, no plots
-        01 : no debug, plots without pauses
-        02 : no debug, plots with pauses
-        10 : debug, no plots
-        11 : debug, plots without pauses
-        12 : debug, plots with pauses
-
+        Debugging level for messages and plots. For details see
+        'numina.array.display.pause_debugplot.py'.
 
     Returns
     -------
@@ -137,7 +134,7 @@ def filtmask(sp, fmin=0.02, fmax=0.15, debugplot=0):
     # Fourier filtering
     xf = np.fft.fftfreq(sp.size)
     yf = np.fft.fft(sp)
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         ximplotxy(xf, yf.real, xlim=(0, 0.51),
                   plottype='semilog', debugplot=debugplot)
 
@@ -145,17 +142,17 @@ def filtmask(sp, fmin=0.02, fmax=0.15, debugplot=0):
     yf[cut] = 0.0
     cut = (np.abs(xf) < fmin)
     yf[cut] = 0.0
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         ximplotxy(xf, yf.real, xlim=(0, 0.51),
                   plottype='semilog', debugplot=debugplot)
 
     sp_filt = np.fft.ifft(yf).real
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         ximplot(sp_filt, title="filtered median spectrum",
                 plot_bbox=(1, sp_filt.size), debugplot=debugplot)
 
     sp_filtmask = sp_filt * cosinebell(sp_filt.size, 0.1)
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         ximplot(sp_filtmask, title="filtered and masked median spectrum",
                 plot_bbox=(1, sp_filt.size), debugplot=debugplot)
 
@@ -229,14 +226,8 @@ def oversample1d(sp, crval1, cdelt1, oversampling=1, debugplot=0):
     oversampling : int
         Oversampling value per pixel.
     debugplot : int
-        Determines whether intermediate computations and/or plots
-        are displayed:
-        00 : no debug, no plots
-        01 : no debug, plots without pauses
-        02 : no debug, plots with pauses
-        10 : debug, no plots
-        11 : debug, plots without pauses
-        12 : debug, plots with pauses
+        Debugging level for messages and plots. For details see
+        'numina.array.display.pause_debugplot.py'.
 
     Returns
     -------
@@ -266,7 +257,7 @@ def oversample1d(sp, crval1, cdelt1, oversampling=1, debugplot=0):
         i2 = i1 + oversampling
         sp_over[i1:i2] = sp[i]
 
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         crvaln = crval1 + (naxis1 - 1) * cdelt1
         crvaln_over = crval1_over + (naxis1_over - 1) * cdelt1_over
         xover = np.linspace(crval1_over, crvaln_over, naxis1_over)
@@ -444,14 +435,8 @@ def process_twilight(fitsfile, npix_zero_in_border,
     outfile : file
         Output FITS file name.
     debugplot : int
-        Determines whether intermediate computations and/or plots
-        are displayed:
-        00 : no debug, no plots
-        01 : no debug, plots without pauses
-        02 : no debug, plots with pauses
-        10 : debug, no plots
-        11 : debug, plots without pauses
-        12 : debug, plots with pauses
+        Debugging level for messages and plots. For details see
+        'numina.array.display.pause_debugplot.py'.
 
     """
 
@@ -460,7 +445,7 @@ def process_twilight(fitsfile, npix_zero_in_border,
         image2d_header = hdulist[0].header
         image2d = hdulist[0].data
     naxis2, naxis1 = image2d.shape
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         ximshow(image2d, show=True,
                 title='initial twilight image', debugplot=debugplot)
 
@@ -469,7 +454,7 @@ def process_twilight(fitsfile, npix_zero_in_border,
     # calibration procedure
     image2d = fix_pix_borders(image2d, nreplace=npix_zero_in_border,
                               sought_value=0, replacement_value=0)
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         ximshow(image2d, show=True,
                 title='twilight image after removing ' +
                       str(npix_zero_in_border) + ' pixels at the borders',
@@ -490,7 +475,7 @@ def process_twilight(fitsfile, npix_zero_in_border,
     # replace zeros by ones
     iszero = np.where(ycutmedian == 0)
     ycutmedian[iszero] = 1
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         ximplot(ycutmedian, plot_bbox=(1, naxis2),
                 title='median ycut', debugplot=debugplot)
 
@@ -498,7 +483,7 @@ def process_twilight(fitsfile, npix_zero_in_border,
     # normalised vertical cross secction
     ycutmedian2d = np.repeat(ycutmedian, naxis1).reshape(naxis2, naxis1)
     image2d_eq = image2d_masked/ycutmedian2d
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         ximshow(image2d_eq.data, show=True,
                 title='equalised image', debugplot=debugplot)
 
@@ -507,7 +492,7 @@ def process_twilight(fitsfile, npix_zero_in_border,
     # filtered and masked median spectrum
     spmedian_filtmask = filtmask(spmedian, fmin=0.02, fmax=0.15,
                                  debugplot=debugplot)
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         xdum = np.arange(naxis1) + 1
         ax = ximplotxy(xdum, spmedian, show=False,
                        title="median spectrum", label='initial')
@@ -527,12 +512,12 @@ def process_twilight(fitsfile, npix_zero_in_border,
     offsets = np.zeros(naxis2)
     for i in range(naxis2):
         sp_filtmask = filtmask(image2d[i, :])
-        if i == naxis2_half and (debugplot in (21, 22)):
+        if i == naxis2_half and (abs(debugplot) in (21, 22)):
             ximplot(sp_filtmask, title="median spectrum of scan " + str(i),
                     plot_bbox=(1, spmedian.size), debugplot=debugplot)
         corr = periodic_corr1d(sp_filtmask, spmedian_filtmask)
         corr = corr[isort]
-        if i == naxis2_half and (debugplot in (21, 22)):
+        if i == naxis2_half and (abs(debugplot) in (21, 22)):
             ximplotxy(xcorr, corr,
                       title="periodic correlation with scan " + str(i),
                       xlim=(-20, 20), debugplot=debugplot)
@@ -541,11 +526,22 @@ def process_twilight(fitsfile, npix_zero_in_border,
                                            method='gaussian')
         offsets[i] = xdum - naxis1_half
 
-    if debugplot in (21, 22):
-        ximplotxy(np.arange(naxis2)+1, offsets, ylim=(-10, 10),
-                  xlabel='pixel in the NAXIS2 direction',
-                  ylabel='offset (pixels) in the NAXIS1 direction',
-                  debugplot=debugplot)
+    if abs(debugplot) in (21, 22):
+        xdum = np.arange(naxis2) + 1
+        ax = ximplotxy(xdum, offsets, ylim=(-10, 10),
+                       xlabel='pixel in the NAXIS2 direction',
+                       ylabel='offset (pixels) in the NAXIS1 direction',
+                       show=False, **{'label': 'measured offsets'})
+        ypol1, residuals, reject = polfit_residuals_with_sigma_rejection(
+            x=xdum, y=offsets, deg=1, times_sigma_reject=5.0)
+        ax.plot(xdum, ypol1(xdum), '-',
+                label='poly1: ' + str(ypol1.coef))
+        ypol2, residuals, reject = polfit_residuals_with_sigma_rejection(
+            x=xdum, y=offsets, deg=2, times_sigma_reject=5.0)
+        ax.plot(xdum, ypol2(xdum), '-',
+                label='poly2: ' + str(ypol2.coef))
+        ax.legend()
+        pause_debugplot(debugplot, pltshow=True)
 
     # oversampling
     naxis1_over = naxis1 * oversampling
@@ -558,7 +554,7 @@ def process_twilight(fitsfile, npix_zero_in_border,
             shiftx_image2d_flux(sp_over, -offsets[i]*oversampling)
         image2d_over[i] = sp_over_shifted
 
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         ximshow(image2d_over, title='oversampled & shifted',
                 debugplot=debugplot)
 
@@ -567,7 +563,7 @@ def process_twilight(fitsfile, npix_zero_in_border,
                                              mask=(image2d_over == 0))
     spmedian_over = np.ma.median(image2d_over_masked, axis=0).data
 
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         xplot = np.linspace(1, naxis1, naxis1)
         xplot_over = np.linspace(1, naxis1, naxis1_over)
         ax = ximplotxy(xplot, spmedian,
@@ -641,7 +637,7 @@ def process_twilight(fitsfile, npix_zero_in_border,
             else:
                 image2d_smoothed[i, j1:j2] = spdum
 
-    if debugplot in (21, 22):
+    if abs(debugplot) in (21, 22):
         ximshow(image2d_over_norm, title='divided (oversampled)',
                 debugplot=debugplot)
         ximshow(image2d_divided,
@@ -681,7 +677,7 @@ def main(args=None):
                         help="integer indicating plotting/debugging" +
                              " (default=0)",
                         type=int, default=0,
-                        choices=[0, 1, 2, 10, 11, 12, 21, 22])
+                        choices=DEBUGPLOT_CODES)
 
     args = parser.parse_args(args=args)
 
