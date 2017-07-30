@@ -186,13 +186,15 @@ def main(args=None):
         for operation in list_operations:
 
             if operation['description'] == 'extrapolation':
-                fibid_ini = operation['fibid_ini']
-                fibid_end = operation['fibid_end']
-                if 1 <= fibid_ini <= fibid_end <= total_fibers:
-                    pass
+                if 'fibid_list' in operation.keys():
+                    fibid_list = operation['fibid_list']
                 else:
-                    raise ValueError('Invalid fibid_ini or fibid_end')
-                for fibid in range(fibid_ini, fibid_end + 1):
+                    fibid_ini = operation['fibid_ini']
+                    fibid_end = operation['fibid_end']
+                    fibid_list = range(fibid_ini, fibid_end + 1)
+                for fibid in fibid_list:
+                    if fibid < 1 or fibid > total_fibers:
+                        raise ValueError('fibid number outside valid range')
                     fiblabel = fibid_with_box[fibid - 1]
                     if len(bigdict['contents'][fibid - 1]['fitparms']) > 0:
                         print('(extrapolation) fibid:', fibid, '-->', fiblabel)

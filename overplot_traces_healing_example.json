@@ -8,6 +8,12 @@
       "stop": 4092
     },
     {
+      "description": "extrapolation",
+      "fibid_list": [603, 605, 607, 608, 609, 612, 613, 615, 616, 617, 619, 622],
+      "start": 4,
+      "stop": 4092
+    },
+    {
       "description": "extrapolation_through_fixed_points",
       "fibid": 614,
       "start_reuse": 4,
