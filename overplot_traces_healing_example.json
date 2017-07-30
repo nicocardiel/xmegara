@@ -1,6 +1,23 @@
 {
   "operations": [
     {
+      "description": "vertical_shift_in_pixels",
+      "fibid_ini": 350,
+      "fibid_end": 350,
+      "vshift": 6
+    },
+    {
+      "description": "vertical_shift_in_pixels",
+      "fibid_list": [350, 351, 408],
+      "vshift": 6
+    },
+    {
+      "description": "duplicate_trace",
+      "fibid_original": 349,
+      "fibid_duplicated": 350,
+      "vshift": 6
+    },
+    {
       "description": "extrapolation",
       "fibid_ini": 1,
       "fibid_end": 622,
@@ -54,6 +71,12 @@
       "fibid": 610,
       "fraction": 0.33333333,
       "neighbours": [609, 612]
+    },
+    {
+      "description": "renumber_fibids",
+      "fibid_ini": 275,
+      "fibid_end": 350,
+      "fibid_shift": -1
     }
   ]
 }
