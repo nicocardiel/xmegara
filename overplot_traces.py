@@ -153,9 +153,15 @@ def main(args=None):
     if total_fibers != len(fibid_with_box):
         raise ValueError('Mismatch between number of fibers and '
                          'expected number from account from boxes')
-    global_offset = bigdict['global_offset']
+    if 'global_offset' in bigdict.keys():
+        global_offset = bigdict['global_offset']
+    else:
+        global_offset = [0.0]
     pol_global_offset = np.polynomial.Polynomial(global_offset)
-    ref_column = bigdict['ref_column']
+    if 'ref_column' in bigdict.keys():
+        ref_column = bigdict['ref_column']
+    else:
+        ref_column = 2000
     for fiberdict in bigdict['contents']:
         fibid = fiberdict['fibid']
         fiblabel = fibid_with_box[fibid - 1]
