@@ -14,6 +14,22 @@
       "stop": 4092
     },
     {
+      "description": "fit_through_fixed_points",
+      "fibid": 614,
+      "poldeg": 5,
+      "start": 4,
+      "stop": 4092,
+      "fixed_points": [
+        {"x": 57.0, "y": 3891.0},
+        {"x": 388.5, "y": 3895.0},
+        {"x": 849.0, "y": 3900.0},
+        {"x": 1400.0, "y": 3905.0},
+        {"x": 2030.0, "y": 3910.0},
+        {"x": 3250.0, "y": 3915.0},
+        {"x": 3860.5, "y": 3917.0}
+      ]
+    },
+    {
       "description": "extrapolation_through_fixed_points",
       "fibid": 614,
       "start_reuse": 4,
@@ -23,24 +39,21 @@
       "start": 4,
       "stop": 4092,
       "fixed_points": [
-        {
-          "x": 2800,
-          "y": 3864
-        },
-        {
-          "x": 3900,
-          "y": 3865
-        }
+        {"x": 2800, "y": 3864},
+        {"x": 3900, "y": 3865}
       ]
     },
     {
-      "description": "interpolation2",
+      "description": "sandwhich",
       "fibid": 535,
       "fraction": 0.5,
-      "neighbours": [
-        534,
-        536
-      ]
+      "neighbours": [534, 536]
+    },
+    {
+      "description": "sandwich",
+      "fibid": 610,
+      "fraction": 0.33333333,
+      "neighbours": [609, 612]
     }
   ]
 }

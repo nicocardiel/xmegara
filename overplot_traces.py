@@ -228,6 +228,37 @@ def main(args=None):
                         print('(extrapolation SKIPPED) fibid:',
                               fibid, '-->', fiblabel)
 
+            elif operation['description'] == 'fit_through_fixed_points':
+                fibid = operation['fibid']
+                fiblabel = fibid_with_box[fibid - 1]
+                print('(fit through fixed points) fibid:', fibid, '-->', fiblabel)
+                poldeg = operation['poldeg']
+                start = operation['start']
+                stop = operation['stop']
+                xfit = []
+                yfit = []
+                for fixedpoint in operation['fixed_points']:
+                    # assume x, y coordinates in JSON file are given in
+                    # image coordinates, starting at (1,1) in the lower
+                    # left corner
+                    xdum = fixedpoint['x'] - 1  # use np.array coordinates
+                    ydum = fixedpoint['y'] - 1  # use np.array coordinates
+                    xfit.append(xdum)
+                    yfit.append(ydum)
+                xfit = np.array(xfit)
+                yfit = np.array(yfit)
+                if len(xfit) <= poldeg:
+                    raise ValueError('Insufficient number of points to fit'
+                                     ' polynomial')
+                poly, residum = polfit_residuals(xfit, yfit, poldeg)
+                coeff = poly.coef
+                plot_trace(ax, coeff, start, stop, ix_offset,
+                           args.rawimage, args.fibids, fiblabel,
+                           colour='green')
+                bigdict['contents'][fibid - 1]['start'] = start
+                bigdict['contents'][fibid - 1]['stop'] = stop
+                bigdict['contents'][fibid - 1]['fitparms'] = coeff.tolist()
+
             elif operation['description'] == \
                     'extrapolation_through_fixed_points':
                 fibid = operation['fibid']
@@ -265,10 +296,10 @@ def main(args=None):
                 bigdict['contents'][fibid - 1]['stop'] = stop
                 bigdict['contents'][fibid - 1]['fitparms'] = coeff.tolist()
 
-            elif operation['description'] == 'interpolation2':
+            elif operation['description'] == 'sandwich':
                 fibid = operation['fibid']
                 fiblabel = fibid_with_box[fibid - 1]
-                print('(interpolation2) fibid:', fibid, '-->', fiblabel)
+                print('(sandwich) fibid:', fibid, '-->', fiblabel)
                 fraction = operation['fraction']
                 nf1, nf2 = operation['neighbours']
                 tmpf1 = bigdict['contents'][nf1 - 1]
