@@ -54,6 +54,13 @@ def traces2ds9(json_file, ds9_file, rawimage, numpix=100, fibid_at=0,
     ds9_file.write('# vph: {0}\n'.format(vph))
     uuid = bigdict['uuid']
     ds9_file.write('# uuid: {0}\n'.format(uuid))
+
+    # check for global_offset in JSON file
+    if 'global_offset' in bigdict.keys():
+        global_offset = bigdict['global_offset']
+    else:
+        global_offset = 0.0
+
     for fiberdict in bigdict['contents']:
         fibid = fiberdict['fibid']
         boxid = fiberdict['boxid']
@@ -71,9 +78,9 @@ def traces2ds9(json_file, ds9_file, rawimage, numpix=100, fibid_at=0,
                 yp[lcut] += 100
             for i in range(len(xp)-1):
                 x1 = xp[i] + ix_offset
-                y1 = yp[i] + 1 + yoffset
+                y1 = yp[i] + 1 + yoffset + global_offset
                 x2 = xp[i+1] + ix_offset
-                y2 = yp[i+1] + 1 + yoffset
+                y2 = yp[i+1] + 1 + yoffset + global_offset
                 ds9_file.write('line {0} {1} {2} {3}'.format(x1, y1, x2, y2))
                 ds9_file.write(' # color={0}\n'.format(colorbox[boxid % 2]))
                 if fibid_at != 0:
