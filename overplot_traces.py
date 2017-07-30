@@ -294,22 +294,22 @@ def main(args=None):
                     else:
                         print('(extrapolation SKIPPED) fibid:', fiblabel)
 
-            elif operation['description'] == 'fit_through_fixed_points':
+            elif operation['description'] == 'fit_through_user_points':
                 fibid = operation['fibid']
                 fiblabel = fibid_with_box[fibid - 1]
                 if args.verbose:
-                    print('(fit through fixed points) fibid:', fiblabel)
+                    print('(fit through user points) fibid:', fiblabel)
                 poldeg = operation['poldeg']
                 start = operation['start']
                 stop = operation['stop']
                 xfit = []
                 yfit = []
-                for fixedpoint in operation['fixed_points']:
+                for userpoint in operation['user_points']:
                     # assume x, y coordinates in JSON file are given in
                     # image coordinates, starting at (1,1) in the lower
                     # left corner
-                    xdum = fixedpoint['x'] - 1  # use np.array coordinates
-                    ydum = fixedpoint['y'] - 1  # use np.array coordinates
+                    xdum = userpoint['x'] - 1  # use np.array coordinates
+                    ydum = userpoint['y'] - 1  # use np.array coordinates
                     xfit.append(xdum)
                     yfit.append(ydum)
                 xfit = np.array(xfit)
@@ -327,11 +327,11 @@ def main(args=None):
                 bigdict['contents'][fibid - 1]['fitparms'] = coeff.tolist()
 
             elif operation['description'] == \
-                    'extrapolation_through_fixed_points':
+                    'extrapolation_through_user_points':
                 fibid = operation['fibid']
                 fiblabel = fibid_with_box[fibid - 1]
                 if args.verbose:
-                    print('(extrapolation+fixed):', fiblabel)
+                    print('(extrapolation_through_user_points):', fiblabel)
                 start_reuse = operation['start_reuse']
                 stop_reuse = operation['stop_reuse']
                 resampling = operation['resampling']
@@ -342,12 +342,12 @@ def main(args=None):
                 xfit = np.linspace(start_reuse, stop_reuse, num=resampling)
                 poly = np.polynomial.Polynomial(coeff)
                 yfit = poly(xfit)
-                for fixedpoint in operation['fixed_points']:
+                for userpoint in operation['user_points']:
                     # assume x, y coordinates in JSON file are given in
                     # image coordinates, starting at (1,1) in the lower
                     # left corner
-                    xdum = fixedpoint['x'] - 1  # use np.array coordinates
-                    ydum = fixedpoint['y'] - 1  # use np.array coordinates
+                    xdum = userpoint['x'] - 1  # use np.array coordinates
+                    ydum = userpoint['y'] - 1  # use np.array coordinates
                     xfit = np.concatenate((xfit, np.array([xdum])))
                     yfit = np.concatenate((yfit, np.array([ydum])))
                 poly, residum = polfit_residuals(xfit, yfit, poldeg)

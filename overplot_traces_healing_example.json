@@ -31,12 +31,12 @@
       "stop": 4092
     },
     {
-      "description": "fit_through_fixed_points",
+      "description": "fit_through_user_points",
       "fibid": 614,
       "poldeg": 5,
       "start": 4,
       "stop": 4092,
-      "fixed_points": [
+      "user_points": [
         {"x": 57.0, "y": 3891.0},
         {"x": 388.5, "y": 3895.0},
         {"x": 849.0, "y": 3900.0},
@@ -47,7 +47,7 @@
       ]
     },
     {
-      "description": "extrapolation_through_fixed_points",
+      "description": "extrapolation_through_user_points",
       "fibid": 614,
       "start_reuse": 4,
       "stop_reuse": 1500,
@@ -55,7 +55,7 @@
       "poldeg": 5,
       "start": 4,
       "stop": 4092,
-      "fixed_points": [
+      "user_points": [
         {"x": 2800, "y": 3864},
         {"x": 3900, "y": 3865}
       ]
