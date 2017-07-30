@@ -393,30 +393,54 @@ def main(args=None):
                 if fibid in bigdict['error_fitting']:
                     bigdict['error_fitting'].remove(fibid)
 
-            elif operation['description'] == 'renumber_fibids':
-                # ToDo: consider the case with opposite sign!
+            elif operation['description'] == 'renumber_fibids_within_box':
                 fibid_ini = operation['fibid_ini']
                 fibid_end = operation['fibid_end']
+                box_ini = fibid_with_box[fibid_ini - 1][4:]
+                box_end = fibid_with_box[fibid_end - 1][4:]
+                if box_ini != box_end:
+                    print('ERROR: box_ini={}, box_end={}'.format(box_ini,
+                                                                 box_end))
+                    raise ValueError('fibid_ini and fibid_end correspond to '
+                                     'different fiber boxes')
                 fibid_shift = operation['fibid_shift']
-                for fibid in range(fibid_ini, fibid_end + 1):
-                    fiblabel_ori = fibid_with_box[fibid - 1]
-                    fiblabel_new = fibid_with_box[fibid - 1 + fibid_shift]
-                    if args.verbose:
-                        print('(shift_fibids) fibid:',
-                              fiblabel_ori, '-->', fiblabel_new)
-                    bigdict['contents'][fibid -1 + fibid_shift] = \
-                        deepcopy(bigdict['contents'][fibid -1])
-                    bigdict['contents'][fibid -1 + fibid_shift]['fibid'] += \
-                        fibid_shift
-                    # display updated trace
-                    coeff = bigdict['contents'][fibid -1 + fibid_shift]['fitparms']
-                    start = bigdict['contents'][fibid -1 + fibid_shift]['start']
-                    stop = bigdict['contents'][fibid -1 + fibid_shift]['stop']
-                    plot_trace(ax, coeff, start, stop, ix_offset,
-                               args.rawimage, args.fibids,
-                               fiblabel_new, colour='green')
-                bigdict['contents'][fibid_end - 1]['fitparms'] = []
-
+                if fibid_shift in [-1, 1]:
+                    if fibid_shift == -1:
+                        i_start = fibid_ini
+                        i_stop = fibid_end + 1
+                        i_step = 1
+                    else:
+                        i_start = fibid_end
+                        i_stop = fibid_ini - 1
+                        i_step = -1
+                    for fibid in range(i_start, i_stop, i_step):
+                        fiblabel_ori = fibid_with_box[fibid - 1]
+                        fiblabel_new = fibid_with_box[fibid - 1 + fibid_shift]
+                        if args.verbose:
+                            print('(renumber_fibids) fibid:',
+                                  fiblabel_ori, '-->', fiblabel_new)
+                        bigdict['contents'][fibid -1 + fibid_shift] = \
+                            deepcopy(bigdict['contents'][fibid -1])
+                        bigdict['contents'][fibid -1 + fibid_shift]['fibid'] += \
+                            fibid_shift
+                        # display updated trace
+                        coeff = \
+                            bigdict['contents'][fibid -1 + fibid_shift]['fitparms']
+                        start = \
+                            bigdict['contents'][fibid -1 + fibid_shift]['start']
+                        stop = bigdict['contents'][fibid -1 + fibid_shift]['stop']
+                        plot_trace(ax, coeff, start, stop, ix_offset,
+                                   args.rawimage, args.fibids,
+                                   fiblabel_ori + '-->' + fiblabel_new,
+                                   colour='green')
+                    if fibid_shift == -1:
+                        bigdict['contents'][fibid_end - 1]['fitparms'] = []
+                    else:
+                        bigdict['contents'][fibid_ini - 1]['fitparms'] = []
+                else:
+                    raise ValueError('fibid_shift in operation '
+                                     'renumber_fibids_within_box '
+                                     'must be -1 or 1')
             else:
                 raise ValueError('Unexpected healing method:',
                                  operation['description'])

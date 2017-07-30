@@ -73,7 +73,7 @@
       "neighbours": [609, 612]
     },
     {
-      "description": "renumber_fibids",
+      "description": "renumber_fibids_within_box",
       "fibid_ini": 275,
       "fibid_end": 350,
       "fibid_shift": -1
