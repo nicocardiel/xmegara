@@ -1,76 +1,40 @@
 {
-  "badfibers": [
+  "operations": [
     {
+      "description": "extrapolation",
+      "fibid_ini": 1,
+      "fibid_end": 622,
+      "start": 4,
+      "stop": 4092
+    },
+    {
+      "description": "extrapolation_through_fixed_points",
+      "fibid": 614,
+      "start_reuse": 4,
+      "stop_reuse": 1500,
+      "resampling": 10,
+      "poldeg": 5,
+      "start": 4,
+      "stop": 4092,
+      "fixed_points": [
+        {
+          "x": 2800,
+          "y": 3864
+        },
+        {
+          "x": 3900,
+          "y": 3865
+        }
+      ]
+    },
+    {
+      "description": "interpolation2",
       "fibid": 535,
-      "method": "interpolation2",
       "fraction": 0.5,
       "neighbours": [
         534,
         536
       ]
-    },
-    {
-      "fibid": 607,
-      "method": "interpolation2",
-      "fraction": 0.5,
-      "neighbours": [
-        606,
-        608
-      ]
-    },
-    {
-      "fibid": 610,
-      "method": "interpolation2",
-      "fraction": 0.5,
-      "neighbours": [
-        609,
-        611
-      ]
-    },
-    {
-      "fibid": 614,
-      "method": "interpolation2",
-      "fraction": 0.5,
-      "neighbours": [
-        613,
-        615
-      ]
-    }
-  ],
-  "extrapolations_single": [
-    {
-      "fibid": 1,
-      "start": 4,
-      "stop": 4092
-    }
-  ],
-  "extrapolation_single_fixed_points": [
-    {
-      "fibid": 614,
-      "start_reuse" : 4,
-      "stop_reuse" : 1500,
-      "resampling" : 10,
-      "poldeg" : 5,
-      "start" : 4,
-      "stop" : 4092,
-      "fixed_points" : [
-        {
-          "x" : 2800,
-          "y" : 3864
-        },
-        {
-          "x" : 3900,
-          "y" : 3865
-        }
-      ]
-    }
-  ],
-  "extrapolations_many": [
-    {
-      "fibid_ini": 1,
-      "fibid_end": 622,
-      "start": 4,
-      "stop": 4092
     }
   ]
 }
