@@ -288,12 +288,12 @@ def main(args=None):
                         if start < start_orig:
                             plot_trace(ax, coeff, start, start_orig,
                                        ix_offset,
-                                       args.rawimage, False, fiblabel,
+                                       args.rawimage, True, fiblabel,
                                        colour='green')
                         if stop_orig < stop:
                             plot_trace(ax, coeff, stop_orig, stop,
                                        ix_offset,
-                                       args.rawimage, False, fiblabel,
+                                       args.rawimage, True, fiblabel,
                                        colour='green')
                     else:
                         print('(extrapolation SKIPPED) fibid:', fiblabel)
