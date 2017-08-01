@@ -64,13 +64,9 @@
       "description": "sandwhich",
       "fibid": 535,
       "fraction": 0.5,
-      "neighbours": [534, 536]
-    },
-    {
-      "description": "sandwich",
-      "fibid": 610,
-      "fraction": 0.33333333,
-      "neighbours": [609, 612]
+      "neighbours": [534, 536],
+      "start": 4,
+      "stop": 4092
     },
     {
       "description": "renumber_fibids_within_box",

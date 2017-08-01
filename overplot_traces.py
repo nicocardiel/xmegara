@@ -371,6 +371,8 @@ def main(args=None):
                     print('(sandwich) fibid:', fiblabel)
                 fraction = operation['fraction']
                 nf1, nf2 = operation['neighbours']
+                start = operation['start']
+                stop = operation['stop']
                 tmpf1 = bigdict['contents'][nf1 - 1]
                 tmpf2 = bigdict['contents'][nf2 - 1]
                 if nf1 != tmpf1['fibid'] or nf2 != tmpf2['fibid']:
@@ -379,8 +381,6 @@ def main(args=None):
                     )
                 coefff1 = np.array(tmpf1['fitparms'])
                 coefff2 = np.array(tmpf2['fitparms'])
-                start = np.min([tmpf1['start'], tmpf2['start']])
-                stop = np.min([tmpf1['stop'], tmpf2['stop']])
                 coeff = coefff1 + fraction * (coefff2 - coefff1)
                 plot_trace(ax, coeff, start, stop, ix_offset,
                            args.rawimage, args.fibids,
