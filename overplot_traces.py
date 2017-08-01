@@ -39,7 +39,7 @@ def assign_boxes_to_fibers(insmode):
 
     fibid_with_box = []
     n1 = 1
-    print('\n* Fiber description for INSMODE=' + insmode)
+    list_to_print = []
     for dumbox in pseudo_slit_config:
         nfibers = dumbox['nfibers']
         name = dumbox['name']
@@ -47,8 +47,12 @@ def assign_boxes_to_fibers(insmode):
         fibid_with_box += \
             ["{}  [{}]".format(val1, val2)
              for val1, val2 in zip(range(n1, n2), [name] * nfibers)]
-        print('Box {:>2},  fibers {:3d} - {:3d}'.format(name, n1, n2 - 1))
+        dumstr ='Box {:>2},  fibers {:3d} - {:3d}'.format(name, n1, n2 - 1)
+        list_to_print.append(dumstr)
         n1 = n2
+    print('\n* Fiber description for INSMODE=' + insmode)
+    for dumstr in reversed(list_to_print):
+        print(dumstr)
     print('---------------------------------')
 
     return fibid_with_box
