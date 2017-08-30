@@ -295,6 +295,11 @@ def main(args=None):
                                        ix_offset,
                                        args.rawimage, True, fiblabel,
                                        colour='green')
+                        if start_orig <= start <= stop <= stop_orig:
+                            plot_trace(ax, coeff, start, stop,
+                                       ix_offset,
+                                       args.rawimage, True, fiblabel,
+                                       colour='green')
                     else:
                         print('(extrapolation SKIPPED) fibid:', fiblabel)
 
