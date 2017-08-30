@@ -1,6 +1,6 @@
 #!/bin/sh
 
-alias MEGARA_qla='~/s/megara-qla-1.4.1/bin/megara-qla'
+alias MEGARA_qla='~/s/megara-qla-1.5.0/bin/megara-qla'
 
 alias MEGARA_find_boxes='python ~/s/xmegara/find_boxes.py'
 # note: find_boxes.py is also found in megaradrp/tools
