@@ -5,6 +5,7 @@ import argparse
 from astropy.io import fits
 import json
 import numpy as np
+from numpy.polynomial import Polynomial
 
 from numina.array.display.polfit_residuals import polfit_residuals
 from numina.array.display.polfit_residuals import \
@@ -103,13 +104,15 @@ def filter_bad_fits(master_wlcalib_file, debugplot):
     return poldeg, poly_list
 
 
-def refine_wlcalib(arc_rss, poldeg, list_poly, debugplot=0):
+def refine_wlcalib(arc_rss, linelist, poldeg, list_poly, debugplot=0):
     """Refine wavelength calibration using expected polynomial in each fiber.
 
     Parameters
     ----------
     arc_rss : file handler
         FITS file containing the uncalibrated RSS.
+    linelist : file handler
+        ASCII file with the detailed list of expected arc lines.
     poldeg : int
         Polynomial degree (must be the same for all the fibers).
     list_poly: list of polynomial instances
@@ -133,16 +136,26 @@ def refine_wlcalib(arc_rss, poldeg, list_poly, debugplot=0):
         print('>>> NAXIS1:', naxis1)
         print('>>> NAXIS2:', naxis2)
 
+    # read list of expected arc lines
+    master_table = np.genfromtxt(linelist)
+    wv_master = master_table[:, 0]
+
+    # abscissae for plots
     xp = np.arange(1, naxis1 + 1)
+
     # loop in naxis2
     for ifib in range(1, naxis2 + 1):
         sp = image2d[ifib - 1,:]
+
+        # find initial line peaks
         nwinwidth_initial = 7
         ixpeaks = find_peaks_spectrum(sp, nwinwidth=nwinwidth_initial)
+
         # check there are enough lines for fit
         if len(ixpeaks) <= poldeg:
             print('WARNING: fibid, number of peaks:', ifib, len(ixpeaks))
         else:
+            # refine location of line peaks
             nwinwidth_refined = 5
             fxpeaks, sxpeaks = refine_peaks_spectrum(
                 sp, ixpeaks,
@@ -151,10 +164,22 @@ def refine_wlcalib(arc_rss, poldeg, list_poly, debugplot=0):
             )
             if debugplot >= 10:
                 print(">>> Number of lines found:", len(fxpeaks))
-            # display median spectrum and peaks
+
+            # expected wavelength calibration polynomial for current fiber
+            coeff = np.zeros(poldeg + 1)
+            for k in range(poldeg + 1):
+                dumpol = list_poly[k]
+                coeff[k] = dumpol(ifib)
+            wlpol = Polynomial(coeff)
+
+            # display spectrum and peaks
+            debugplot = 12
             if debugplot % 10 != 0:
                 title = arc_rss.name + ' [fiber #' + str(ifib) + ']'
-                ax = ximplotxy(xp, sp, title=title,
+                ax = ximplotxy(xp, sp,
+                               xlabel='pixel (from 1 to NAXIS1)',
+                               ylabel='number of counts',
+                               title=title,
                                show=False, debugplot=debugplot)
                 ymin = sp.min()
                 ymax = sp.max()
@@ -163,10 +188,13 @@ def refine_wlcalib(arc_rss, poldeg, list_poly, debugplot=0):
                 ymax += dy / 20.
                 ax.set_ylim([ymin, ymax])
                 # mark peak location
-                ax.plot(ixpeaks + 1,
-                        sp[ixpeaks], 'bo', label="initial location")
-                ax.plot(fxpeaks + 1,
-                        sp[ixpeaks], 'go', label="refined location")
+                ax.plot(ixpeaks + 1, sp[ixpeaks], 'bo',
+                        label="initial location")
+                ax.plot(fxpeaks + 1, sp[ixpeaks], 'go',
+                        label="refined location")
+                for i in range(len(ixpeaks)):
+                    ax.text(fxpeaks[i] + 1, sp[ixpeaks[i]],
+                            wlpol(fxpeaks[i] + 1), fontsize=8)
                 # legend
                 ax.legend(numpoints=1)
                 # show plot
@@ -184,7 +212,7 @@ def main(args=None):
                         help="JSON file with initial wavelength calibration",
                         type=argparse.FileType('r'))
     parser.add_argument("linelist",
-                        help="ASCII file with detailed list of identified "
+                        help="ASCII file with detailed list of expected "
                              "arc lines",
                         type=argparse.FileType('r'))
     parser.add_argument("--debugplot",
@@ -195,7 +223,7 @@ def main(args=None):
     args = parser.parse_args(args=args)
 
     poldeg, list_poly = filter_bad_fits(args.wlcalib_file, args.debugplot)
-    refine_wlcalib(args.uncalibrated_arc_rss,
+    refine_wlcalib(args.uncalibrated_arc_rss, args.linelist,
                    poldeg, list_poly, args.debugplot)
 
 
