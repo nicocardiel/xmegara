@@ -6,6 +6,7 @@ from astropy.io import fits
 import json
 import numpy as np
 from numpy.polynomial import Polynomial
+from uuid import uuid4
 
 from numina.array.display.polfit_residuals import polfit_residuals
 from numina.array.display.polfit_residuals import \
@@ -440,6 +441,7 @@ def main(args=None):
     megadict = json.loads(open(args.wlcalib_file.name).read())
     megadict['missing_fibers'] = missing_fibers
     megadict['contents'] = contents
+    megadict['uuid'] = str(uuid4())
     with open('xxx.json', 'w') as fstream:
         json.dump(megadict, fstream, indent=2, sort_keys=True)
 
