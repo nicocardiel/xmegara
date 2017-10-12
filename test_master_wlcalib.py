@@ -21,7 +21,7 @@ from numina.array.wavecalib.solutionarc import WavecalFeature
 from numina.array.display.pause_debugplot import DEBUGPLOT_CODES
 
 
-def filter_bad_fits(wlcalib_file, debugplot):
+def filter_bad_fits(wlcalib_file, times_sigma_reject, debugplot):
     """Exctract useful information from master_wlcalib.
 
     Obtain the variation of each coefficient of the wavelength
@@ -32,6 +32,8 @@ def filter_bad_fits(wlcalib_file, debugplot):
     ----------
     wlcalib_file : file handler
         JSON file containing the initial wavelength calibration.
+    times_sigma_reject : float
+        Times sigma to reject points in fits.
     debugplot : int
         Debugging level for messages and plots. For details see
         'numina.array.display.pause_debugplot.py'.
@@ -69,7 +71,7 @@ def filter_bad_fits(wlcalib_file, debugplot):
             x=fibid,
             y=coeff,
             deg=5,
-            times_sigma_reject=5,
+            times_sigma_reject=times_sigma_reject,
         )
         if abs(debugplot) % 10 != 0:
             polfit_residuals(x=fibid, y=coeff, deg=5, reject=reject,
@@ -181,7 +183,7 @@ def match_wv_arrays(wv_master, wv_expected_all_peaks, delta_wv_max):
 
 
 def refine_wlcalib(arc_rss, linelist, poldeg, list_poly, npix=2,
-                   debugplot=0):
+                   times_sigma_reject=5, debugplot=0):
     """Refine wavelength calibration using expected polynomial in each fiber.
 
     Parameters
@@ -199,6 +201,8 @@ def refine_wlcalib(arc_rss, linelist, poldeg, list_poly, npix=2,
     npix : int
         Number of pixels around each peak where the expected wavelength
         must match the tabulated wavelength in the master list.
+    times_sigma_reject : float
+        Times sigma to reject points in fits.
     debugplot : int
         Debugging level for messages and plots. For details see
         'numina.array.display.pause_debugplot.py'.
@@ -301,7 +305,7 @@ def refine_wlcalib(arc_rss, linelist, poldeg, list_poly, npix=2,
                 x=xdum,
                 y=ydum,
                 deg=poldeg,
-                times_sigma_reject=5,
+                times_sigma_reject=times_sigma_reject,
                 debugplot=debugplot
             )
             # effective number of points
@@ -426,7 +430,8 @@ def main(args=None):
 
     poldeg, list_poly = filter_bad_fits(
         args.wlcalib_file,
-        args.debugplot
+        times_sigma_reject=5.0,
+        debugplot=args.debugplot
     )
 
     missing_fibers, contents = refine_wlcalib(
@@ -435,6 +440,7 @@ def main(args=None):
         poldeg,
         list_poly,
         npix=2,
+        times_sigma_reject=5.0,
         debugplot=args.debugplot
     )
 
