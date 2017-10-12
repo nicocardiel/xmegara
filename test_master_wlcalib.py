@@ -232,6 +232,8 @@ def refine_wlcalib(arc_rss, linelist, poldeg, list_poly, npix=2,
     # read list of expected arc lines
     master_table = np.genfromtxt(linelist)
     wv_master = master_table[:, 0]
+    if abs(debugplot) >= 10:
+        print('wv_master:', wv_master)
 
     # abscissae for plots
     xp = np.arange(1, naxis1 + 1)
@@ -269,9 +271,16 @@ def refine_wlcalib(arc_rss, linelist, poldeg, list_poly, npix=2,
                 dumpol = list_poly[k]
                 coeff[k] = dumpol(ifib)
             wlpol = Polynomial(coeff)
+            if abs(debugplot) >= 10:
+                print(">>> Expected calibration polynomial:", wlpol)
 
             # expected wavelength of all identified peaks
-            wv_expected_all_peaks = wlpol(fxpeaks + 1.0)
+            xchannel = fxpeaks + 1.0
+            wv_expected_all_peaks = wlpol(xchannel)
+            if abs(debugplot) in [21, 22]:
+                for dum in zip(xchannel, wv_expected_all_peaks):
+                    print('x, w:', dum)
+                pause_debugplot(debugplot)
 
             # assign individual arc lines from master list to spectrum
             # line peaks when the expected wavelength is within the maximum
