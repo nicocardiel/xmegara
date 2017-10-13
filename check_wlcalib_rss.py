@@ -44,7 +44,8 @@ def fun_wv(xchannel, crpix1, crval1, cdelt1):
     return wv
 
 
-def process_rss(fitsfile, linelist, poldeg, npix_zero_in_border, debugplot):
+def process_rss(fitsfile, linelist, poldeg, npix_zero_in_border,
+                geometry, debugplot):
     """Process twilight image.
 
     Parameters
@@ -59,6 +60,8 @@ def process_rss(fitsfile, linelist, poldeg, npix_zero_in_border, debugplot):
         Number of pixels to be set to zero at the beginning and at
         the end of each spectrum to avoid unreliable pixel values
         produced in the wavelength calibration procedure.
+    geometry : tuple (4 integers) or None
+        x, y, dx, dy values employed to set the Qt backend geometry.
     debugplot : int
         Debugging level for messages and plots. For details see
         'numina.array.display.pause_debugplot.py'.
@@ -167,23 +170,53 @@ def process_rss(fitsfile, linelist, poldeg, npix_zero_in_border, debugplot):
     missing_wv = list(set(list_wv_master).symmetric_difference(set(list_wv_found)))
     print(">>> Unmatched lines...................:", missing_wv)
 
+    # compute residuals
+    xresid = fxpeaks_wv[lines_ok]
+    yresid = wv_verified_all_peaks[lines_ok] - fxpeaks_wv[lines_ok]
+
+    # display results
     if abs(debugplot) % 10 != 0:
+        from numina.array.display.matplotlib_qt import plt
+        fig = plt.figure()
+        if geometry is not None:
+            x_geom, y_geom, dx_geom, dy_geom = geometry
+            mngr = plt.get_current_fig_manager()
+            mngr.window.setGeometry(x_geom, y_geom, dx_geom, dy_geom)
+
+        # residuals
+        ax2 = fig.add_subplot(2, 1, 1)
+        ax2.plot(xresid, yresid, 'o')
+        ax2.set_ylabel('Residuals (Angstroms)')
+        ax2.set_title(fitsfile, **{'size': 10})
+
+        # median spectrum and peaks
         xwv = fun_wv(np.arange(naxis1) + 1.0, crpix1, crval1, cdelt1)
-        ax = ximplotxy(xwv, spmedian, show=False,
-                       xlabel='wavelength (Angstroms)',
-                       ylabel='counts',
-                       title="median spectrum")
-        ax.plot(ixpeaks_wv, spmedian[ixpeaks], 'bo',
+        xmin = min(xwv)
+        xmax = max(xwv)
+        dx = xmax - xmin
+        xmin -= dx / 80
+        xmax += dx / 80
+        ymin = min(spmedian)
+        ymax = max(spmedian)
+        dy = ymax - ymin
+        ymin -= dy/20
+        ymax += dy/20
+        ax1 = fig.add_subplot(2, 1, 2, sharex=ax2)
+        ax1.set_xlim([xmin, xmax])
+        ax1.plot(xwv, spmedian)
+        ax1.plot(ixpeaks_wv, spmedian[ixpeaks], 'o',
                 label="initial location")
-        ax.plot(fxpeaks_wv, spmedian[ixpeaks], 'go',
+        ax1.plot(fxpeaks_wv, spmedian[ixpeaks], 'o',
                 label="refined location")
+        ax1.set_xlabel('Wavelength (Angstroms)')
+        ax1.set_ylabel('Counts')
         for i in range(len(ixpeaks)):
             if wv_verified_all_peaks[i] > 0:
-                ax.text(fxpeaks_wv[i], spmedian[ixpeaks[i]],
+                ax1.text(fxpeaks_wv[i], spmedian[ixpeaks[i]] + dy/100,
                         wv_verified_all_peaks[i], fontsize=8,
                         horizontalalignment='center')
-        ax.legend()
-        pause_debugplot(debugplot, pltshow=True)
+        ax1.legend()
+        pause_debugplot(debugplot, pltshow=True, tight_layout=True)
 
 
 def main(args=None):
@@ -204,19 +237,34 @@ def main(args=None):
                         help="Number of pixels to be set to zero at the "
                              "borders of each spectrum (default=3)",
                         default=3, type=int)
+    parser.add_argument("--geometry",
+                        help="tuple x,y,dx,dy",
+                        default="0,0,640,480")
     parser.add_argument("--debugplot",
                         help="integer indicating plotting/debugging" +
                              " (default=0)",
-                        type=int, default=0,
+                        type=int, default=12,
                         choices=DEBUGPLOT_CODES)
 
     args = parser.parse_args(args=args)
+
+    # geometry
+    if args.geometry is None:
+        geometry = None
+    else:
+        tmp_str = args.geometry.split(",")
+        x_geom = int(tmp_str[0])
+        y_geom = int(tmp_str[1])
+        dx_geom = int(tmp_str[2])
+        dy_geom = int(tmp_str[3])
+        geometry = x_geom, y_geom, dx_geom, dy_geom
 
     process_rss(args.fitsfile.name,
                 args.linelist,
                 args.poldeg,
                 args.npixzero,
-                args.debugplot)
+                geometry=geometry,
+                debugplot=args.debugplot)
 
 
 if __name__ == "__main__":
