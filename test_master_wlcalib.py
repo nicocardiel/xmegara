@@ -6,6 +6,7 @@ from astropy.io import fits
 import json
 import numpy as np
 from numpy.polynomial import Polynomial
+import os
 from uuid import uuid4
 
 from numina.array.display.polfit_residuals import polfit_residuals
@@ -421,7 +422,8 @@ def main(args=None):
     parser = argparse.ArgumentParser(prog='overplot_traces')
     # positional parameters
     parser.add_argument("uncalibrated_arc_rss",
-                        help="FITS image containing uncalibrated RSS",
+                        help="FITS image containing wavelength uncalibrated "
+                             "RSS",
                         type=argparse.FileType('r'))
     parser.add_argument("wlcalib_file",
                         help="JSON file with initial wavelength calibration",
@@ -457,7 +459,9 @@ def main(args=None):
     megadict['missing_fibers'] = missing_fibers
     megadict['contents'] = contents
     megadict['uuid'] = str(uuid4())
-    with open('xxx.json', 'w') as fstream:
+    outfile = os.path.basename(args.wlcalib_file.name) + '_refined'
+    print("Generating: " + outfile)
+    with open(outfile, 'w') as fstream:
         json.dump(megadict, fstream, indent=2, sort_keys=True)
 
 
