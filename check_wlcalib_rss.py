@@ -120,6 +120,12 @@ def main(args=None):
     parser.add_argument("--wv_master_file", required=True,
                         help="TXT file containing wavelengths",
                         type=argparse.FileType('r'))
+    parser.add_argument("--out_sp",
+                        help="File name to save the median spectrum in FITS "
+                             "format including the wavelength "
+                             "calibration (default=None)",
+                        default=None,
+                        type=argparse.FileType('w'))
     parser.add_argument("--npixzero",
                         help="Number of pixels to be set to zero at the "
                              "borders of each spectrum (default=3)",
@@ -146,12 +152,21 @@ def main(args=None):
         dy_geom = int(tmp_str[3])
         geometry = x_geom, y_geom, dx_geom, dy_geom
 
+    # compute median spectrum and get wavelength calibration parameters
     spmedian, crpix1, crval1, cdelt1 = process_rss(
         args.fitsfile.name,
         args.npixzero,
         geometry=geometry,
         debugplot=args.debugplot
     )
+
+    # save median spectrum
+    if args.out_sp is not None:
+        hdu = fits.PrimaryHDU(spmedian)
+        hdu.header['CRPIX1'] = crpix1
+        hdu.header['CRVAL1'] = crval1
+        hdu.header['CDELT1'] = cdelt1
+        hdu.writeto(args.out_sp, overwrite=True)
 
     # read list of expected arc lines
     master_table = np.genfromtxt(args.wv_master_file)
@@ -160,12 +175,15 @@ def main(args=None):
         print('wv_master:', wv_master)
 
     # check the wavelength calibration
+    title = 'fitsfile: ' + os.path.basename(args.fitsfile.name) + \
+            ' [collapsed median]\n' + \
+            'wv_master: ' + os.path.basename(args.wv_master_file.name)
     check_sp(sp=spmedian,
              crpix1=crpix1,
              crval1=crval1,
              cdelt1=cdelt1,
              wv_master=wv_master,
-             title="TBD",
+             title=title,
              geometry=geometry,
              debugplot=args.debugplot)
 
