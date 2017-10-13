@@ -15,6 +15,7 @@ from numina.array.display.polfit_residuals import \
 from numina.array.display.pause_debugplot import pause_debugplot
 from numina.array.display.ximplotxy import ximplotxy
 # from numina.array.wavecalib.arccalibration import fit_list_of_wvfeatures
+from numina.array.wavecalib.check_wlcalib import match_wv_arrays
 from numina.array.wavecalib.peaks_spectrum import find_peaks_spectrum
 from numina.array.wavecalib.peaks_spectrum import refine_peaks_spectrum
 # from numina.array.wavecalib.solutionarc import WavecalFeature
@@ -108,79 +109,6 @@ def filter_bad_fits(wlcalib_file, times_sigma_reject, debugplot):
         poly_list.append(poly)
 
     return poldeg, poly_list
-
-
-def match_wv_arrays(wv_master, wv_expected_all_peaks, delta_wv_max):
-    """Verify expected wavelength for each line peak.
-
-    Assign individual arc lines from wv_master to each expected
-    wavelength when the latter is within the maximum allowed range.
-
-    Parameters
-    ----------
-    wv_master : numpy array
-        Array containing the master wavelengths.
-    wv_expected_all_peaks : numpy array
-        Array containing the expected wavelengths computed from the
-        approximate polynomial calibration applied to the location of
-        the line peaks.
-    delta_wv_max : float
-        Maximum distance to accept that the master wavelength
-        corresponds to the expected wavelength.
-
-    Returns
-    -------
-    wv_verified_all_peaks : numpy array
-        Verified wavelengths from master list.
-
-    """
-
-    # initialize the output array to zero
-    wv_verified_all_peaks = np.zeros_like(wv_expected_all_peaks)
-
-    # initialize to True array to indicate that no peak has already
-    # been verified (this flag avoids duplication)
-    wv_unused = np.ones_like(wv_expected_all_peaks, dtype=bool)
-
-    # since it is likely that len(wv_master) < len(wv_expected_all_peaks),
-    # it is more convenient to execute the search in the following order
-    for i in range(len(wv_master)):
-        j = np.searchsorted(wv_expected_all_peaks, wv_master[i])
-        if j == 0:
-            if wv_unused[j]:
-                delta_wv = abs(wv_master[i] - wv_expected_all_peaks[j])
-                if delta_wv < delta_wv_max:
-                    wv_verified_all_peaks[j] = wv_master[i]
-                    wv_unused[j] = False
-        elif j == len(wv_expected_all_peaks):
-            if wv_unused[j-1]:
-                delta_wv = abs(wv_master[i] - wv_expected_all_peaks[j-1])
-                if delta_wv < delta_wv_max:
-                    wv_verified_all_peaks[j-1] = wv_master[i]
-                    wv_unused[j-1] = False
-        else:
-            delta_wv1 = abs(wv_master[i] - wv_expected_all_peaks[j-1])
-            delta_wv2 = abs(wv_master[i] - wv_expected_all_peaks[j])
-            if delta_wv1 < delta_wv2:
-                if delta_wv1 < delta_wv_max:
-                    if wv_unused[j-1]:
-                        wv_verified_all_peaks[j-1] = wv_master[i]
-                        wv_unused[j-1] = False
-                    elif wv_unused[j]:
-                        if delta_wv2 < delta_wv_max:
-                            wv_verified_all_peaks[j] = wv_master[i]
-                            wv_unused[j] = False
-            else:
-                if delta_wv2 < delta_wv_max:
-                    if wv_unused[j]:
-                        wv_verified_all_peaks[j] = wv_master[i]
-                        wv_unused[j] = False
-                    elif wv_unused[j-1]:
-                        if delta_wv1 < delta_wv_max:
-                            wv_verified_all_peaks[j-1] = wv_master[i]
-                            wv_unused[j-1] = False
-
-    return wv_verified_all_peaks
 
 
 def refine_wlcalib(arc_rss, linelist, poldeg, list_poly, npix=2,
@@ -419,7 +347,7 @@ def refine_wlcalib(arc_rss, linelist, poldeg, list_poly, npix=2,
 
 def main(args=None):
     # parse command-line options
-    parser = argparse.ArgumentParser(prog='overplot_traces')
+    parser = argparse.ArgumentParser(prog='refine_master_wlcalib')
     # positional parameters
     parser.add_argument("uncalibrated_arc_rss",
                         help="FITS image containing wavelength uncalibrated "
