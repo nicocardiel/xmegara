@@ -140,8 +140,6 @@ def process_rss(fitsfile, linelist, poldeg, npix_zero_in_border, debugplot):
             nwinwidth=nwinwidth_refined,
             method="gaussian"
         )
-        if abs(debugplot) >= 10:
-            print(">>> Number of lines found:", len(fxpeaks))
 
     ixpeaks_wv = fun_wv(ixpeaks + 1, crpix1, crval1, cdelt1)
     fxpeaks_wv = fun_wv(fxpeaks + 1, crpix1, crval1, cdelt1)
@@ -159,6 +157,15 @@ def process_rss(fitsfile, linelist, poldeg, npix_zero_in_border, debugplot):
         fxpeaks_wv,
         delta_wv_max=delta_wv_max
     )
+    lines_ok = np.where(wv_verified_all_peaks > 0)
+    print(">>> Number of arc lines in master file:", len(wv_master))
+    print(">>> Number of line peaks found........:", len(ixpeaks))
+    print(">>> Number of identified lines........:", len(lines_ok[0]))
+    list_wv_found = [str(round(wv, 4))
+                     for wv in wv_verified_all_peaks if wv != 0]
+    list_wv_master = [str(round(wv, 4)) for wv in wv_master]
+    missing_wv = list(set(list_wv_master).symmetric_difference(set(list_wv_found)))
+    print(">>> Unmatched lines...................:", missing_wv)
 
     if abs(debugplot) % 10 != 0:
         xwv = fun_wv(np.arange(naxis1) + 1.0, crpix1, crval1, cdelt1)
