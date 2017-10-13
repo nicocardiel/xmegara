@@ -14,10 +14,10 @@ from numina.array.display.polfit_residuals import \
     polfit_residuals_with_sigma_rejection
 from numina.array.display.pause_debugplot import pause_debugplot
 from numina.array.display.ximplotxy import ximplotxy
-from numina.array.wavecalib.arccalibration import fit_list_of_wvfeatures
+# from numina.array.wavecalib.arccalibration import fit_list_of_wvfeatures
 from numina.array.wavecalib.peaks_spectrum import find_peaks_spectrum
 from numina.array.wavecalib.peaks_spectrum import refine_peaks_spectrum
-from numina.array.wavecalib.solutionarc import WavecalFeature
+# from numina.array.wavecalib.solutionarc import WavecalFeature
 
 from numina.array.display.pause_debugplot import DEBUGPLOT_CODES
 
