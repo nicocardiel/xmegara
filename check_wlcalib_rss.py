@@ -5,9 +5,9 @@ import argparse
 import astropy.io.fits as fits
 import numpy as np
 from numina.array.display.pause_debugplot import pause_debugplot
+from numina.array.display.polfit_residuals import polfit_residuals
 from numina.array.display.ximplot import ximplot
 from numina.array.display.ximshow import ximshow
-from numina.array.display.ximplotxy import ximplotxy
 from numina.array.wavecalib.peaks_spectrum import find_peaks_spectrum
 from numina.array.wavecalib.peaks_spectrum import refine_peaks_spectrum
 
@@ -155,6 +155,21 @@ def process_rss(fitsfile, linelist, npix_zero_in_border,
         delta_wv_max=delta_wv_max
     )
     lines_ok = np.where(wv_verified_all_peaks > 0)
+
+    # compute residuals
+    xresid = fxpeaks_wv[lines_ok]
+    yresid = wv_verified_all_peaks[lines_ok] - fxpeaks_wv[lines_ok]
+
+    # fit polynomial to residuals
+    polyres, yresres = polfit_residuals(
+        x=xresid,
+        y=yresid,
+        deg=1,
+        use_r=True,
+        debugplot=10
+    )
+
+    print('-' * 79)
     print(">>> Number of arc lines in master file:", len(wv_master))
     print(">>> Number of line peaks found........:", len(ixpeaks))
     print(">>> Number of identified lines........:", len(lines_ok[0]))
@@ -163,10 +178,6 @@ def process_rss(fitsfile, linelist, npix_zero_in_border,
     list_wv_master = [str(round(wv, 4)) for wv in wv_master]
     missing_wv = list(set(list_wv_master).symmetric_difference(set(list_wv_found)))
     print(">>> Unmatched lines...................:", missing_wv)
-
-    # compute residuals
-    xresid = fxpeaks_wv[lines_ok]
-    yresid = wv_verified_all_peaks[lines_ok] - fxpeaks_wv[lines_ok]
 
     # display results
     if abs(debugplot) % 10 != 0:
@@ -182,9 +193,10 @@ def process_rss(fitsfile, linelist, npix_zero_in_border,
         ax2.plot(xresid, yresid, 'o')
         ax2.set_ylabel('Residuals (Angstroms)')
         ax2.set_title(fitsfile, **{'size': 10})
+        xwv = fun_wv(np.arange(naxis1) + 1.0, crpix1, crval1, cdelt1)
+        ax2.plot(xwv, polyres(xwv), '-')
 
         # median spectrum and peaks
-        xwv = fun_wv(np.arange(naxis1) + 1.0, crpix1, crval1, cdelt1)
         xmin = min(xwv)
         xmax = max(xwv)
         dx = xmax - xmin
