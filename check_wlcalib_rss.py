@@ -229,18 +229,19 @@ def process_rss(fitsfile, linelist, npix_zero_in_border,
         ax1.xaxis.tick_top()
         ax1.xaxis.set_label_position('top')
         for i in range(len(ixpeaks)):
+            # identified lines
             if wv_verified_all_peaks[i] > 0:
                 ax1.text(fxpeaks_wv[i], spmedian[ixpeaks[i]],
                         wv_verified_all_peaks[i], fontsize=8,
                         horizontalalignment='center')
-            else:
-                estimated_wv=fun_wv(fxpeaks[i] + 1, crpix1, crval1, cdelt1)
-                estimated_wv=str(round(estimated_wv, 4))
-                ax1.text(fxpeaks_wv[i], 0, # spmedian[ixpeaks[i]],
-                         estimated_wv, fontsize=8, color='grey',
-                         rotation='vertical',
-                         horizontalalignment='center',
-                         verticalalignment='top')
+            # estimated wavelength from initial calibration
+            estimated_wv=fun_wv(fxpeaks[i] + 1, crpix1, crval1, cdelt1)
+            estimated_wv=str(round(estimated_wv, 4))
+            ax1.text(fxpeaks_wv[i], 0, # spmedian[ixpeaks[i]],
+                     estimated_wv, fontsize=8, color='grey',
+                     rotation='vertical',
+                     horizontalalignment='center',
+                     verticalalignment='top')
         if len(missing_wv) > 0:
             tmp = [float(wv) for wv in missing_wv]
             ax1.vlines(tmp, ymin=ymin, ymax=ymax,
