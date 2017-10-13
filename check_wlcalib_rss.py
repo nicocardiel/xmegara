@@ -213,6 +213,7 @@ def process_rss(fitsfile, linelist, npix_zero_in_border,
         ymax += dy/20
         ax1 = fig.add_subplot(2, 1, 2, sharex=ax2)
         ax1.set_xlim([xmin, xmax])
+        ax1.set_ylim([ymin, ymax])
         ax1.plot(xwv, spmedian)
         ax1.plot(ixpeaks_wv, spmedian[ixpeaks], 'o',
                 label="initial location")
@@ -225,6 +226,11 @@ def process_rss(fitsfile, linelist, npix_zero_in_border,
                 ax1.text(fxpeaks_wv[i], spmedian[ixpeaks[i]] + dy/100,
                         wv_verified_all_peaks[i], fontsize=8,
                         horizontalalignment='center')
+        if len(missing_wv) > 0:
+            tmp = [float(wv) for wv in missing_wv]
+            ax1.vlines(tmp, ymin=ymin, ymax=ymax,
+                       colors='grey', linestyles='dotted',
+                       label='missing lines')
         ax1.legend()
         pause_debugplot(debugplot, pltshow=True, tight_layout=True)
 
