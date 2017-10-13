@@ -190,22 +190,20 @@ def process_rss(fitsfile, linelist, npix_zero_in_border,
             mngr = plt.get_current_fig_manager()
             mngr.window.setGeometry(x_geom, y_geom, dx_geom, dy_geom)
 
-        ax = fig.add_subplot(1, 1, 1)
-        ax.text(0.5, 0.5, 'Wavelength (Angstroms)',
-                horizontalalignment='center',
-                verticalalignment='center',
-                fontsize=12)
-        ax.axis('off')
-
         # residuals
         ax2 = fig.add_subplot(2, 1, 1)
         ax2.plot(xresid, yresid, 'o')
         ax2.set_ylabel('Residuals (Angstroms)')
+        ax2.yaxis.label.set_size(10)
         ax2.set_title('fitsfile: ' + os.path.basename(fitsfile) + '\n' +
                       'linelist: ' + os.path.basename(linelist.name),
                       **{'size': 10})
         xwv = fun_wv(np.arange(naxis1) + 1.0, crpix1, crval1, cdelt1)
         ax2.plot(xwv, polyres(xwv), '-')
+        ax2.text(1, 0, 'Wavelength (Angstroms)',
+                 horizontalalignment='right',
+                 verticalalignment='bottom',
+                 transform=ax2.transAxes)
 
         # median spectrum and peaks
         xmin = min(xwv)
@@ -227,6 +225,7 @@ def process_rss(fitsfile, linelist, npix_zero_in_border,
         ax1.plot(fxpeaks_wv, spmedian[ixpeaks], 'o',
                 label="refined location")
         ax1.set_ylabel('Counts')
+        ax1.yaxis.label.set_size(10)
         ax1.xaxis.tick_top()
         ax1.xaxis.set_label_position('top')
         for i in range(len(ixpeaks)):
@@ -248,7 +247,7 @@ def process_rss(fitsfile, linelist, npix_zero_in_border,
                        colors='grey', linestyles='dotted',
                        label='missing lines')
         ax1.legend()
-        pause_debugplot(debugplot, pltshow=True, tight_layout=True)
+        pause_debugplot(debugplot, pltshow=True)
 
 
 def main(args=None):
