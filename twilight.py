@@ -3,8 +3,8 @@ from __future__ import print_function
 
 import argparse
 import astropy.io.fits as fits
-from fix_borders_wlcal_rss import find_pix_borders
-from fix_borders_wlcal_rss import fix_pix_borders
+from fix_borders_wlcalib_rss import find_pix_borders
+from fix_borders_wlcalib_rss import fix_pix_borders
 import numpy as np
 from numpy.polynomial.polynomial import polyval
 from numina.array.display.pause_debugplot import pause_debugplot
