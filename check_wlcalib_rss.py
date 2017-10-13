@@ -44,7 +44,7 @@ def fun_wv(xchannel, crpix1, crval1, cdelt1):
     return wv
 
 
-def process_rss(fitsfile, linelist, poldeg, npix_zero_in_border,
+def process_rss(fitsfile, linelist, npix_zero_in_border,
                 geometry, debugplot):
     """Process twilight image.
 
@@ -54,8 +54,6 @@ def process_rss(fitsfile, linelist, poldeg, npix_zero_in_border,
         Wavelength calibrated RSS FITS file name.
     linelist : file handler
         ASCII file with the detailed list of expected arc lines.
-    poldeg : int
-        Polynomial degree to fit line peaks.
     npix_zero_in_border : int
         Number of pixels to be set to zero at the beginning and at
         the end of each spectrum to avoid unreliable pixel values
@@ -132,17 +130,13 @@ def process_rss(fitsfile, linelist, poldeg, npix_zero_in_border,
     nwinwidth_initial = 7
     ixpeaks = find_peaks_spectrum(spmedian, nwinwidth=nwinwidth_initial)
 
-    # check there are enough lines for fit
-    if len(ixpeaks) <= poldeg:
-        raise ValueError("Insufficient line peaks to fit polynomial")
-    else:
-        # refine location of line peaks
-        nwinwidth_refined = 5
-        fxpeaks, sxpeaks = refine_peaks_spectrum(
-            spmedian, ixpeaks,
-            nwinwidth=nwinwidth_refined,
-            method="gaussian"
-        )
+    # refine location of line peaks
+    nwinwidth_refined = 5
+    fxpeaks, sxpeaks = refine_peaks_spectrum(
+        spmedian, ixpeaks,
+        nwinwidth=nwinwidth_refined,
+        method="gaussian"
+    )
 
     ixpeaks_wv = fun_wv(ixpeaks + 1, crpix1, crval1, cdelt1)
     fxpeaks_wv = fun_wv(fxpeaks + 1, crpix1, crval1, cdelt1)
@@ -230,9 +224,6 @@ def main(args=None):
                         help="ASCII file with detailed list of expected "
                              "arc lines",
                         type=argparse.FileType('r'))
-    parser.add_argument("--poldeg",
-                        help="Polynomial degree to fit line peaks (default=0)",
-                        type=int, default=0)
     parser.add_argument("--npixzero",
                         help="Number of pixels to be set to zero at the "
                              "borders of each spectrum (default=3)",
@@ -261,7 +252,6 @@ def main(args=None):
 
     process_rss(args.fitsfile.name,
                 args.linelist,
-                args.poldeg,
                 args.npixzero,
                 geometry=geometry,
                 debugplot=args.debugplot)
