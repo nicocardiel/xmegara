@@ -3,29 +3,62 @@ from __future__ import print_function
 
 import argparse
 import astropy.io.fits as fits
-from fix_borders_wlcalib_rss import fix_pix_borders
 import numpy as np
 from numina.array.display.pause_debugplot import pause_debugplot
 from numina.array.display.ximplot import ximplot
 from numina.array.display.ximshow import ximshow
 from numina.array.display.ximplotxy import ximplotxy
+from numina.array.wavecalib.peaks_spectrum import find_peaks_spectrum
+from numina.array.wavecalib.peaks_spectrum import refine_peaks_spectrum
 
 from numina.array.display.pause_debugplot import DEBUGPLOT_CODES
 
+from fix_borders_wlcalib_rss import fix_pix_borders
+from refine_master_wlcalib import match_wv_arrays
 
-def process_rss(fitsfile, npix_zero_in_border, linelist, debugplot):
+
+def fun_wv(xchannel, crpix1, crval1, cdelt1):
+    """Compute wavelengths from channels.
+
+    The wavelength calibration is provided through the usual parameters
+    CRPIX1, CRVAL1 and CDELT1.
+
+    Parameters
+    ----------
+    xchannel : numpy array
+        Input channels where the wavelengths will be evaluated.
+    crpix1: float
+        CRPIX1 keyword.
+    crval1: float
+        CRVAL1 keyword.
+    cdelt1: float
+        CDELT1 keyword.
+
+    Returns
+    -------
+    wv : numpy array
+        Computed wavelengths
+
+    """
+    wv = crval1 + (xchannel - crpix1) * cdelt1
+    return wv
+
+
+def process_rss(fitsfile, linelist, poldeg, npix_zero_in_border, debugplot):
     """Process twilight image.
 
     Parameters
     ----------
     fitsfile : str
         Wavelength calibrated RSS FITS file name.
+    linelist : file handler
+        ASCII file with the detailed list of expected arc lines.
+    poldeg : int
+        Polynomial degree to fit line peaks.
     npix_zero_in_border : int
         Number of pixels to be set to zero at the beginning and at
         the end of each spectrum to avoid unreliable pixel values
         produced in the wavelength calibration procedure.
-    linelist : file handler
-        ASCII file with the detailed list of expected arc lines.
     debugplot : int
         Debugging level for messages and plots. For details see
         'numina.array.display.pause_debugplot.py'.
@@ -91,12 +124,57 @@ def process_rss(fitsfile, npix_zero_in_border, linelist, debugplot):
 
     # median spectrum
     spmedian = np.ma.median(image2d_eq, axis=0).data
+
+    # find initial line peaks
+    nwinwidth_initial = 7
+    ixpeaks = find_peaks_spectrum(spmedian, nwinwidth=nwinwidth_initial)
+
+    # check there are enough lines for fit
+    if len(ixpeaks) <= poldeg:
+        raise ValueError("Insufficient line peaks to fit polynomial")
+    else:
+        # refine location of line peaks
+        nwinwidth_refined = 5
+        fxpeaks, sxpeaks = refine_peaks_spectrum(
+            spmedian, ixpeaks,
+            nwinwidth=nwinwidth_refined,
+            method="gaussian"
+        )
+        if abs(debugplot) >= 10:
+            print(">>> Number of lines found:", len(fxpeaks))
+
+    ixpeaks_wv = fun_wv(ixpeaks + 1, crpix1, crval1, cdelt1)
+    fxpeaks_wv = fun_wv(fxpeaks + 1, crpix1, crval1, cdelt1)
+
+    # read list of expected arc lines
+    master_table = np.genfromtxt(linelist)
+    wv_master = master_table[:, 0]
+    if abs(debugplot) in (21,22):
+        print('wv_master:', wv_master)
+
+    # match peaks with expected arc lines
+    delta_wv_max = 2 * cdelt1
+    wv_verified_all_peaks = match_wv_arrays(
+        wv_master,
+        fxpeaks_wv,
+        delta_wv_max=delta_wv_max
+    )
+
     if abs(debugplot) % 10 != 0:
-        xwv = crval1 + (np.arange(naxis1) + 1 - crpix1) * cdelt1
+        xwv = fun_wv(np.arange(naxis1) + 1.0, crpix1, crval1, cdelt1)
         ax = ximplotxy(xwv, spmedian, show=False,
                        xlabel='wavelength (Angstroms)',
                        ylabel='counts',
                        title="median spectrum")
+        ax.plot(ixpeaks_wv, spmedian[ixpeaks], 'bo',
+                label="initial location")
+        ax.plot(fxpeaks_wv, spmedian[ixpeaks], 'go',
+                label="refined location")
+        for i in range(len(ixpeaks)):
+            if wv_verified_all_peaks[i] > 0:
+                ax.text(fxpeaks_wv[i], spmedian[ixpeaks[i]],
+                        wv_verified_all_peaks[i], fontsize=8,
+                        horizontalalignment='center')
         ax.legend()
         pause_debugplot(debugplot, pltshow=True)
 
@@ -112,6 +190,9 @@ def main(args=None):
                         help="ASCII file with detailed list of expected "
                              "arc lines",
                         type=argparse.FileType('r'))
+    parser.add_argument("--poldeg",
+                        help="Polynomial degree to fit line peaks (default=0)",
+                        type=int, default=0)
     parser.add_argument("--npixzero",
                         help="Number of pixels to be set to zero at the "
                              "borders of each spectrum (default=3)",
@@ -125,8 +206,9 @@ def main(args=None):
     args = parser.parse_args(args=args)
 
     process_rss(args.fitsfile.name,
-                args.npixzero,
                 args.linelist,
+                args.poldeg,
+                args.npixzero,
                 args.debugplot)
 
 
