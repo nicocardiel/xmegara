@@ -4,6 +4,8 @@ from __future__ import print_function
 import argparse
 import astropy.io.fits as fits
 import numpy as np
+import os
+
 from numina.array.display.pause_debugplot import pause_debugplot
 from numina.array.display.polfit_residuals import polfit_residuals
 from numina.array.display.ximplot import ximplot
@@ -192,7 +194,9 @@ def process_rss(fitsfile, linelist, npix_zero_in_border,
         ax2 = fig.add_subplot(2, 1, 1)
         ax2.plot(xresid, yresid, 'o')
         ax2.set_ylabel('Residuals (Angstroms)')
-        ax2.set_title(fitsfile, **{'size': 10})
+        ax2.set_title('fitsfile: ' + os.path.basename(fitsfile) + '\n' +
+                      'linelist: ' + os.path.basename(linelist.name),
+                      **{'size': 10})
         xwv = fun_wv(np.arange(naxis1) + 1.0, crpix1, crval1, cdelt1)
         ax2.plot(xwv, polyres(xwv), '-')
 
