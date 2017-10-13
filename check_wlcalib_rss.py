@@ -190,6 +190,13 @@ def process_rss(fitsfile, linelist, npix_zero_in_border,
             mngr = plt.get_current_fig_manager()
             mngr.window.setGeometry(x_geom, y_geom, dx_geom, dy_geom)
 
+        ax = fig.add_subplot(1, 1, 1)
+        ax.text(0.5, 0.5, 'Wavelength (Angstroms)',
+                horizontalalignment='center',
+                verticalalignment='center',
+                fontsize=12)
+        ax.axis('off')
+
         # residuals
         ax2 = fig.add_subplot(2, 1, 1)
         ax2.plot(xresid, yresid, 'o')
@@ -219,13 +226,22 @@ def process_rss(fitsfile, linelist, npix_zero_in_border,
                 label="initial location")
         ax1.plot(fxpeaks_wv, spmedian[ixpeaks], 'o',
                 label="refined location")
-        ax1.set_xlabel('Wavelength (Angstroms)')
         ax1.set_ylabel('Counts')
+        ax1.xaxis.tick_top()
+        ax1.xaxis.set_label_position('top')
         for i in range(len(ixpeaks)):
             if wv_verified_all_peaks[i] > 0:
-                ax1.text(fxpeaks_wv[i], spmedian[ixpeaks[i]] + dy/100,
+                ax1.text(fxpeaks_wv[i], spmedian[ixpeaks[i]],
                         wv_verified_all_peaks[i], fontsize=8,
                         horizontalalignment='center')
+            else:
+                estimated_wv=fun_wv(fxpeaks[i] + 1, crpix1, crval1, cdelt1)
+                estimated_wv=str(round(estimated_wv, 4))
+                ax1.text(fxpeaks_wv[i], 0, # spmedian[ixpeaks[i]],
+                         estimated_wv, fontsize=8, color='grey',
+                         rotation='vertical',
+                         horizontalalignment='center',
+                         verticalalignment='top')
         if len(missing_wv) > 0:
             tmp = [float(wv) for wv in missing_wv]
             ax1.vlines(tmp, ymin=ymin, ymax=ymax,
