@@ -37,6 +37,16 @@ def process_rss(fitsfile, npix_zero_in_border, linelist, debugplot):
         image2d_header = hdulist[0].header
         image2d = hdulist[0].data
     naxis2, naxis1 = image2d.shape
+    crpix1 = image2d_header['crpix1']
+    crval1 = image2d_header['crval1']
+    cdelt1 = image2d_header['cdelt1']
+    print('* Input file:', fitsfile)
+    print('>>> NAXIS1:', naxis1)
+    print('>>> NAXIS2:', naxis2)
+    print('>>> CRPIX1:', crpix1)
+    print('>>> CRVAL1:', crval1)
+    print('>>> CDELT1:', cdelt1)
+
     if abs(debugplot) in (21, 22):
         ximshow(image2d, show=True,
                 title='Wavelength calibrated RSS image', debugplot=debugplot)
@@ -81,10 +91,12 @@ def process_rss(fitsfile, npix_zero_in_border, linelist, debugplot):
 
     # median spectrum
     spmedian = np.ma.median(image2d_eq, axis=0).data
-    if abs(debugplot) in (21, 22):
-        xdum = np.arange(naxis1) + 1
-        ax = ximplotxy(xdum, spmedian, show=False,
-                       title="median spectrum", label='initial')
+    if abs(debugplot) % 10 != 0:
+        xwv = crval1 + (np.arange(naxis1) + 1 - crpix1) * cdelt1
+        ax = ximplotxy(xwv, spmedian, show=False,
+                       xlabel='wavelength (Angstroms)',
+                       ylabel='counts',
+                       title="median spectrum")
         ax.legend()
         pause_debugplot(debugplot, pltshow=True)
 
