@@ -8,7 +8,7 @@ import os
 
 from numina.array.display.ximplot import ximplot
 from numina.array.display.ximshow import ximshow
-from numina.array.wavecalib.check_wlcalib import check_sp
+from numina.array.wavecalib.check_wlcalib import check_wlcalib_sp
 
 from numina.array.display.pause_debugplot import DEBUGPLOT_CODES
 
@@ -178,14 +178,14 @@ def main(args=None):
     title = 'fitsfile: ' + os.path.basename(args.fitsfile.name) + \
             ' [collapsed median]\n' + \
             'wv_master: ' + os.path.basename(args.wv_master_file.name)
-    check_sp(sp=spmedian,
-             crpix1=crpix1,
-             crval1=crval1,
-             cdelt1=cdelt1,
-             wv_master=wv_master,
-             title=title,
-             geometry=geometry,
-             debugplot=args.debugplot)
+    check_wlcalib_sp(sp=spmedian,
+                     crpix1=crpix1,
+                     crval1=crval1,
+                     cdelt1=cdelt1,
+                     wv_master=wv_master,
+                     title=title,
+                     geometry=geometry,
+                     debugplot=args.debugplot)
 
 
 if __name__ == "__main__":
