@@ -134,8 +134,6 @@ def main(args=None):
         from matplotlib.backends.backend_pdf import PdfPages
         pdf = PdfPages(args.pdffile.name)
     else:
-        import matplotlib
-        matplotlib.use('Qt5Agg')
         pdf = None
 
     ax = ximshow_file(args.fits_file.name,
