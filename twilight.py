@@ -3,8 +3,6 @@ from __future__ import print_function
 
 import argparse
 import astropy.io.fits as fits
-from fix_borders_wlcalib_rss import find_pix_borders
-from fix_borders_wlcalib_rss import fix_pix_borders
 import numpy as np
 from numina.array.display.pause_debugplot import pause_debugplot
 from numina.array.display.polfit_residuals import \
@@ -12,6 +10,8 @@ from numina.array.display.polfit_residuals import \
 from numina.array.display.ximplot import ximplot
 from numina.array.display.ximshow import ximshow
 from numina.array.display.ximplotxy import ximplotxy
+from numina.array.wavecalib import find_pix_borders
+from numina.array.wavecalib import fix_pix_borders
 from numina.array.wavecalib.peaks_spectrum import refine_peaks_spectrum
 from numina.array.wavecalib.resample import oversample1d
 from numina.array.wavecalib.resample import rebin
