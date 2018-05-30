@@ -5,15 +5,15 @@ import numpy as np
 
 
 def find_pix_borders(sp, sought_value):
-    """Find useful region of MEGARA spectrum.
+    """Find useful region of a given spectrum
 
-    Detemine the useful region of a given MEGARA spectrum by skipping
+    Detemine the useful region of a given spectrum by skipping
     the initial (final) pixels with values equal to 'sought_value'.
 
     Parameters
     ----------
     sp : 1D numpy array
-        MEGARA spectrum.
+        Input spectrum.
     sought_value : int, float, bool
         Pixel value that indicate missing data in the spectrum.
 
@@ -21,8 +21,9 @@ def find_pix_borders(sp, sought_value):
     -------
     jmin, jmax : tuple (integers)
         Valid spectrum region (in array coordinates, from 0 to
-        NAXIS1 - 1). If all the spectra is equal to 'sought_value',
-        the returned values are jmin=-1 and jmax=naxis1.
+        NAXIS1 - 1). If the values of all the pixels in the spectrum 
+        are equal to 'sought_value', the returned values are jmin=-1 
+        and jmax=naxis1.
 
     """
 
